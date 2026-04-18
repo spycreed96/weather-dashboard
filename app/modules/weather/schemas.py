@@ -33,9 +33,11 @@ class WeatherResponse(BaseModel):
     humidity: int
     wind_speed: float
     icon: str
+    cloudiness: int
     feels_like: float
     dew_point: float
     visibility: int
     pressure: int
     air_quality: str
+    precipitation_next_24h: float
     forecast_days: list[ForecastDay] = Field(default_factory=list)

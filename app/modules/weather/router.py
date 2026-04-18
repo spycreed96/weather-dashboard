@@ -9,7 +9,7 @@ router = APIRouter()
 async def get_weather(city: str = "Catanzaro"):
     try:
         weather = await get_weather_data(city)
-        return weather.dict()
+        return weather.model_dump()
     except Exception as exc:
         raise HTTPException(status_code=500, detail=f"Errore nel recupero dati meteo: {str(exc)}")
 
@@ -18,7 +18,6 @@ async def get_weather(city: str = "Catanzaro"):
 async def get_city_suggestions(q: str, limit: int = 5):
     if not q or len(q) < 2:
         return []
-
     try:
         suggestions = await get_city_suggestions_data(q, limit)
         return suggestions

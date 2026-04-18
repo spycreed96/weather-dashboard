@@ -2,10 +2,12 @@ import { qs, qsa } from "../../shared/utils/dom.js";
 import { formatCurrentTime } from "../../shared/utils/format-date.js";
 import { renderForecastChart, renderForecastItems, renderForecastList } from "./components/forecast-list.js";
 import { renderSearchForm } from "./components/search-form.js";
+import { renderWeatherInsightsSection, renderWeatherInsightCards } from "./components/weather-insights.js";
 import { createHistoryItem } from "./components/weather-details.js";
 import { renderWeatherCard } from "./components/weather-card.js";
 import { fetchCitySuggestions, fetchWeather } from "./services/weather-api.js";
 import {
+  capitalizeText,
   formatDetailTemperature,
   formatDetailTemperaturePlaceholder,
   formatTemperaturePlaceholder,
@@ -26,6 +28,7 @@ export function mountWeatherFeature(root) {
       ${renderSearchForm()}
       ${renderWeatherCard()}
       ${renderForecastList()}
+      ${renderWeatherInsightsSection()}
     </main>
   `;
 
@@ -33,6 +36,7 @@ export function mountWeatherFeature(root) {
     cityMap: null,
     cityMapCircle: null,
     cityMapMarker: null,
+    currentWeather: null,
     debounceTimer: null,
     forecastData: [],
     selectedForecastDate: null,
@@ -49,7 +53,7 @@ export function mountWeatherFeature(root) {
   bindForecastNavigation(elements, state);
   bindSearchInteractions(elements, state);
   bindGlobalInteractions(elements);
-  renderSelectedForecastChart(elements, state);
+  renderForecastPanels(elements, state);
   void fetchAndRenderWeather("Catanzaro", elements, state);
 }
 
@@ -63,6 +67,7 @@ function getElements(root) {
     forecastList: qs("#daily-forecast-list", root),
     forecastNext: qs("#forecast-next", root),
     forecastPrev: qs("#forecast-prev", root),
+    weatherInsightsCards: qs("#weather-insights-cards", root),
     form: qs("#search-form", root),
     historyContainer: qs("#history-container", root),
     historyNav: qs(".history-nav", root),
@@ -162,7 +167,7 @@ function refreshDisplayedTemperatures(elements, state) {
     }
   });
 
-  renderSelectedForecastChart(elements, state);
+  renderForecastPanels(elements, state);
 }
 
 function bindHistoryNavigation(elements) {
@@ -299,6 +304,7 @@ async function fetchAndRenderWeather(city, elements, state) {
 }
 
 function renderWeather(elements, state, data) {
+  state.currentWeather = data;
   state.forecastData = data.forecast_days || [];
   state.selectedForecastDate = getDefaultForecastDate(state.forecastData);
 
@@ -332,13 +338,14 @@ function renderWeather(elements, state, data) {
     });
   }
 
-  renderSelectedForecastChart(elements, state);
+  renderForecastPanels(elements, state);
 
   updateCityMap(elements, state, data);
   addToHistory(elements, state, data);
 }
 
 function resetWeatherPanel(elements, state) {
+  state.currentWeather = null;
   state.forecastData = [];
   state.selectedForecastDate = null;
   elements.location.textContent = "--";
@@ -362,7 +369,7 @@ function resetWeatherPanel(elements, state) {
     updateForecastNavState(elements);
   }
 
-  renderSelectedForecastChart(elements, state);
+  renderForecastPanels(elements, state);
 
   if (elements.mapCopy) {
     elements.mapCopy.textContent = "Vista geografica centrata sulla citta corrente";
@@ -399,11 +406,7 @@ function updateInlineDetailTemperature(element, value, unit) {
 }
 
 function formatWeatherSummary(description) {
-  if (!description) {
-    return "--";
-  }
-
-  return description.charAt(0).toUpperCase() + description.slice(1);
+  return description ? capitalizeText(description) : "--";
 }
 
 function renderSuggestions(elements, suggestions) {
@@ -554,6 +557,11 @@ function updateForecastSelection(elements, state) {
   });
 }
 
+function renderForecastPanels(elements, state) {
+  renderSelectedForecastChart(elements, state);
+  renderWeatherInsights(elements, state);
+}
+
 function renderSelectedForecastChart(elements, state) {
   if (!elements.forecastChart) {
     return;
@@ -561,6 +569,18 @@ function renderSelectedForecastChart(elements, state) {
 
   const selectedDay = state.forecastData.find((day) => day.date === state.selectedForecastDate) || null;
   elements.forecastChart.innerHTML = renderForecastChart(selectedDay, state.temperatureUnit);
+}
+
+function renderWeatherInsights(elements, state) {
+  if (!elements.weatherInsightsCards) {
+    return;
+  }
+
+  elements.weatherInsightsCards.innerHTML = renderWeatherInsightCards(
+    state.currentWeather,
+    state.forecastData,
+    state.temperatureUnit,
+  );
 }
 
 function getDefaultForecastDate(forecastDays) {

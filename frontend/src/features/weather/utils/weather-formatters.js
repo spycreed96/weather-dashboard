@@ -105,6 +105,49 @@ export function formatDetailTemperature(value, unit = "celsius") {
   return `${roundedValue}${getDetailTemperatureUnitText(unit)}`;
 }
 
+export function formatMillimeters(value) {
+  const numericValue = toNumericValue(value);
+
+  if (numericValue === null) {
+    return "--";
+  }
+
+  return numericValue.toLocaleString("it-IT", {
+    minimumFractionDigits: Number.isInteger(numericValue) ? 0 : 1,
+    maximumFractionDigits: 1,
+  });
+}
+
+export function formatSpeed(value) {
+  const numericValue = toNumericValue(value);
+
+  if (numericValue === null) {
+    return "-- km/h";
+  }
+
+  return `${numericValue.toLocaleString("it-IT", {
+    minimumFractionDigits: Number.isInteger(numericValue) ? 0 : 1,
+    maximumFractionDigits: 1,
+  })} km/h`;
+}
+
+export function capitalizeText(value) {
+  if (!value) {
+    return "";
+  }
+
+  return value.charAt(0).toUpperCase() + value.slice(1);
+}
+
+export function toNumericValue(value) {
+  if (value === undefined || value === null || value === "") {
+    return null;
+  }
+
+  const numericValue = Number(value);
+  return Number.isFinite(numericValue) ? numericValue : null;
+}
+
 export function formatLocation(data) {
   const isItaly = data.country === "IT" || data.country_name === "Italy";
   const parts = isItaly

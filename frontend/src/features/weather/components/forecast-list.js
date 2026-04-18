@@ -1,10 +1,12 @@
 import {
+  capitalizeText,
   formatTemperature,
   getTemperatureUnitCharacter,
   renderDetailInlineTemperature,
   shouldShowTemperatureDegree,
   getWeatherIconUrl,
 } from "../utils/weather-formatters.js";
+import { buildAreaPath, buildSmoothPath, convertTemperatureValue } from "../utils/chart-helpers.js";
 
 const CHART_WIDTH = 760;
 const CHART_HEIGHT = 260;
@@ -21,7 +23,7 @@ export function renderForecastList() {
       <div class="forecast-panel-header">
         <div>
           <h3 id="forecast-panel-title">Panoramica</h3>
-          <p class="forecast-panel-copy">Seleziona un giorno dalla forecast list per aggiornare la curva della temperatura.</p>
+          <p class="forecast-panel-copy">Seleziona un giorno dalla lista delle previsioni per aggiornare la curva della temperatura.</p>
         </div>
       </div>
       <div id="forecast-chart" class="forecast-chart" aria-live="polite"></div>
@@ -175,50 +177,6 @@ export function renderForecastChart(day, unit = "celsius") {
   `;
 }
 
-function convertTemperatureValue(value, unit) {
-  const numericValue = Number(value);
-
-  if (Number.isNaN(numericValue)) {
-    return 0;
-  }
-
-  if (unit === "fahrenheit") {
-    return Math.round((numericValue * 9) / 5 + 32);
-  }
-
-  return Math.round(numericValue);
-}
-
-function buildSmoothPath(points) {
-  if (!points.length) {
-    return "";
-  }
-
-  if (points.length === 1) {
-    return `M ${points[0].x} ${points[0].y}`;
-  }
-
-  let path = `M ${points[0].x} ${points[0].y}`;
-
-  for (let index = 0; index < points.length - 1; index += 1) {
-    const currentPoint = points[index];
-    const nextPoint = points[index + 1];
-    const controlX = (currentPoint.x + nextPoint.x) / 2;
-
-    path += ` C ${controlX} ${currentPoint.y}, ${controlX} ${nextPoint.y}, ${nextPoint.x} ${nextPoint.y}`;
-  }
-
-  return path;
-}
-
-function buildAreaPath(points, baselineY) {
-  if (!points.length) {
-    return "";
-  }
-
-  return `${buildSmoothPath(points)} L ${points[points.length - 1].x} ${baselineY} L ${points[0].x} ${baselineY} Z`;
-}
-
 function formatAxisTemperature(value, unit = "celsius") {
   const showDegree = shouldShowTemperatureDegree(unit);
 
@@ -240,13 +198,5 @@ function formatForecastHeading(day) {
         month: "long",
       });
 
-  return `${capitalize(day.label || "")}${day.label ? " · " : ""}${formattedDate}`;
-}
-
-function capitalize(value) {
-  if (!value) {
-    return "";
-  }
-
-  return value.charAt(0).toUpperCase() + value.slice(1);
+  return `${capitalizeText(day.label || "")}${day.label ? " · " : ""}${formattedDate}`;
 }

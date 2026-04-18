@@ -1,14 +1,12 @@
 import os
 
-from pydantic import BaseSettings
+from dotenv import load_dotenv
 
+load_dotenv()
 
-class Settings(BaseSettings):
-    openweather_api_key: str = os.getenv("OPENWEATHER_API_KEY", "")
-    openweather_base_url: str = "https://api.openweathermap.org/data/2.5/weather"
+API_KEY = os.getenv("OPENWEATHER_API_KEY")
+BASE_URL = os.getenv("BASE_URL")
+ONE_CALL_URL = os.getenv("ONE_CALL_URL")
+ONE_CALL_TIMEMACHINE_URL = os.getenv("ONE_CALL_TIMEMACHINE_URL")
+MAX_FORECAST_DAYS = 8
 
-    class Config:
-        env_file = ".env"
-
-
-settings = Settings()
