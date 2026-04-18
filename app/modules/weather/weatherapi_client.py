@@ -282,6 +282,10 @@ def get_moon_phase_label(moon_phase: str | None) -> str | None:
 def build_astronomy_context(astro_payload: dict | None, target_date, current_local_dt: datetime) -> dict:
     if not astro_payload or target_date is None:
         return {
+            "sunrise_time": None,
+            "sunset_time": None,
+            "sun_visibility_minutes": None,
+            "sun_progress": None,
             "moonrise_time": None,
             "moonset_time": None,
             "moon_visibility_minutes": None,
@@ -290,6 +294,11 @@ def build_astronomy_context(astro_payload: dict | None, target_date, current_loc
             "next_full_moon_date": None,
             "moon_progress": None,
         }
+
+    sunrise_time = parse_weatherapi_clock_time(target_date, astro_payload.get("sunrise"))
+    sunset_time = parse_weatherapi_clock_time(target_date, astro_payload.get("sunset"))
+    if sunrise_time and sunset_time and sunset_time <= sunrise_time:
+        sunset_time += timedelta(days=1)
 
     moonrise_time = parse_weatherapi_clock_time(target_date, astro_payload.get("moonrise"))
     moonset_time = parse_weatherapi_clock_time(target_date, astro_payload.get("moonset"))
@@ -300,6 +309,10 @@ def build_astronomy_context(astro_payload: dict | None, target_date, current_loc
     moon_illumination = astro_payload.get("moon_illumination")
 
     return {
+        "sunrise_time": format_time_24h(sunrise_time),
+        "sunset_time": format_time_24h(sunset_time),
+        "sun_visibility_minutes": calculate_span_minutes(sunrise_time, sunset_time),
+        "sun_progress": calculate_cycle_progress(current_local_dt, sunrise_time, sunset_time),
         "moonrise_time": format_time_24h(moonrise_time),
         "moonset_time": format_time_24h(moonset_time),
         "moon_visibility_minutes": calculate_span_minutes(moonrise_time, moonset_time),

@@ -26,13 +26,17 @@ export function mountWeatherFeature(root) {
   root.innerHTML = `
     <main class="app-container">
       ${renderSearchForm()}
-      ${renderWeatherCard()}
-      ${renderForecastList()}
-      ${renderWeatherInsightsSection()}
+      <div class="dashboard-content">
+        <p id="current-location" class="current-location">--</p>
+        ${renderWeatherCard()}
+        ${renderForecastList()}
+        ${renderWeatherInsightsSection()}
+      </div>
     </main>
   `;
 
   const state = {
+    activeQuery: "Catanzaro",
     cityMap: null,
     cityMapCircle: null,
     cityMapMarker: null,
@@ -48,6 +52,7 @@ export function mountWeatherFeature(root) {
   applySavedTheme(elements.themeToggle);
   updateTemperatureUnitButton(elements, state);
   bindThemeToggle(elements.themeToggle);
+  bindRefreshButton(elements, state);
   bindTemperatureToggle(elements, state);
   bindHistoryNavigation(elements);
   bindForecastNavigation(elements, state);
@@ -80,9 +85,14 @@ function getElements(root) {
     map: qs("#city-map", root),
     mapCopy: qs("#map-copy", root),
     pressure: qs("#pressure", root),
+    refreshDashboard: qs("#refresh-dashboard", root),
     searchHeader: qs(".search-header", root),
     suggestions: qs("#suggestions", root),
     temperature: qs("#temperature", root),
+    temperatureOptionCelsius: qs("#temperature-option-celsius", root),
+    temperatureOptionFahrenheit: qs("#temperature-option-fahrenheit", root),
+    temperatureSettingsClose: qs("#temperature-settings-close", root),
+    temperatureSettingsDropdown: qs("#temperature-settings-dropdown", root),
     weatherSummary: qs("#weather-summary", root),
     temperatureUnitToggle: qs("#temperature-unit-toggle", root),
     themeToggle: qs("#theme-toggle", root),
@@ -111,25 +121,52 @@ function bindThemeToggle(themeToggle) {
   });
 }
 
+function bindRefreshButton(elements, state) {
+  if (!elements.refreshDashboard) {
+    return;
+  }
+
+  elements.refreshDashboard.addEventListener("click", () => {
+    const query = state.activeQuery || elements.input?.value.trim() || "Catanzaro";
+    hideSuggestions(elements);
+    void fetchAndRenderWeather(query, elements, state);
+  });
+}
+
 function updateThemeToggle(themeToggle, isDark) {
   if (!themeToggle) {
     return;
   }
 
-  themeToggle.textContent = isDark ? "Dark" : "Light";
+  themeToggle.textContent = isDark ? "☀" : "☾";
   themeToggle.setAttribute("aria-pressed", String(isDark));
+  themeToggle.setAttribute("aria-label", isDark ? "Passa al tema chiaro" : "Passa al tema scuro");
+  themeToggle.setAttribute("title", isDark ? "Passa al tema chiaro" : "Passa al tema scuro");
 }
 
 function bindTemperatureToggle(elements, state) {
-  if (!elements.temperatureUnitToggle) {
+  if (!elements.temperatureUnitToggle || !elements.temperatureSettingsDropdown) {
     return;
   }
 
-  elements.temperatureUnitToggle.addEventListener("click", () => {
-    state.temperatureUnit = state.temperatureUnit === "celsius" ? "fahrenheit" : "celsius";
-    updateTemperatureUnitButton(elements, state);
-    refreshDisplayedTemperatures(elements, state);
+  elements.temperatureUnitToggle.addEventListener("click", (event) => {
+    event.stopPropagation();
+    toggleTemperatureSettingsDropdown(elements, state);
   });
+
+  elements.temperatureSettingsClose?.addEventListener("click", () => {
+    closeTemperatureSettingsDropdown(elements);
+  });
+
+  elements.temperatureOptionFahrenheit?.addEventListener("click", () => {
+    applyTemperatureUnitSelection("fahrenheit", elements, state);
+  });
+
+  elements.temperatureOptionCelsius?.addEventListener("click", () => {
+    applyTemperatureUnitSelection("celsius", elements, state);
+  });
+
+  updateTemperatureSettingsDropdown(elements, state);
 }
 
 function updateTemperatureUnitButton(elements, state) {
@@ -138,6 +175,87 @@ function updateTemperatureUnitButton(elements, state) {
   }
 
   elements.temperatureUnitToggle.textContent = state.temperatureUnit === "celsius" ? "C" : "F";
+}
+
+function applyTemperatureUnitSelection(unit, elements, state) {
+  if (state.temperatureUnit === unit) {
+    updateTemperatureSettingsDropdown(elements, state);
+    return;
+  }
+
+  state.temperatureUnit = unit;
+  updateTemperatureUnitButton(elements, state);
+  updateTemperatureSettingsDropdown(elements, state);
+  refreshDisplayedTemperatures(elements, state);
+}
+
+function updateTemperatureSettingsDropdown(elements, state) {
+  const options = [
+    { button: elements.temperatureOptionFahrenheit, unit: "fahrenheit" },
+    { button: elements.temperatureOptionCelsius, unit: "celsius" },
+  ];
+
+  options.forEach(({ button, unit }) => {
+    if (!button) {
+      return;
+    }
+
+    const isActive = state.temperatureUnit === unit;
+    button.classList.toggle("is-active", isActive);
+    button.setAttribute("aria-pressed", String(isActive));
+  });
+}
+
+function closeTemperatureSettingsDropdown(elements) {
+  if (!elements.temperatureSettingsDropdown || !elements.temperatureUnitToggle) {
+    return;
+  }
+
+  elements.temperatureSettingsDropdown.classList.remove("show");
+  elements.temperatureSettingsDropdown.setAttribute("aria-hidden", "true");
+  elements.temperatureUnitToggle.setAttribute("aria-expanded", "false");
+}
+
+function toggleTemperatureSettingsDropdown(elements, state) {
+  if (!elements.temperatureSettingsDropdown || !elements.temperatureUnitToggle) {
+    return;
+  }
+
+  if (elements.temperatureSettingsDropdown.classList.contains("show")) {
+    closeTemperatureSettingsDropdown(elements);
+    return;
+  }
+
+  closeAllHistoryDropdowns();
+  updateTemperatureSettingsDropdown(elements, state);
+  elements.temperatureSettingsDropdown.classList.add("show");
+  elements.temperatureSettingsDropdown.setAttribute("aria-hidden", "false");
+  elements.temperatureUnitToggle.setAttribute("aria-expanded", "true");
+  positionTemperatureSettingsDropdown(elements.temperatureUnitToggle, elements.temperatureSettingsDropdown);
+}
+
+function positionTemperatureSettingsDropdown(toggleButton, dropdown) {
+  const spacing = 8;
+  const buttonRect = toggleButton.getBoundingClientRect();
+  const dropdownRect = dropdown.getBoundingClientRect();
+
+  let left = buttonRect.right - dropdownRect.width;
+  let top = buttonRect.bottom + spacing;
+
+  if (left < spacing) {
+    left = spacing;
+  }
+
+  if (left + dropdownRect.width > window.innerWidth - spacing) {
+    left = window.innerWidth - dropdownRect.width - spacing;
+  }
+
+  if (top + dropdownRect.height > window.innerHeight - spacing) {
+    top = Math.max(spacing, buttonRect.top - dropdownRect.height - spacing);
+  }
+
+  dropdown.style.left = `${left}px`;
+  dropdown.style.top = `${top}px`;
 }
 
 function refreshDisplayedTemperatures(elements, state) {
@@ -187,10 +305,14 @@ function bindHistoryNavigation(elements) {
 
   window.addEventListener("resize", () => {
     closeAllHistoryDropdowns();
+    closeTemperatureSettingsDropdown(elements);
     updateHistoryNavVisibility(elements);
   });
 
-  elements.historyContainer.addEventListener("scroll", closeAllHistoryDropdowns);
+  elements.historyContainer.addEventListener("scroll", () => {
+    closeAllHistoryDropdowns();
+    closeTemperatureSettingsDropdown(elements);
+  });
 }
 
 function bindForecastNavigation(elements, state) {
@@ -287,6 +409,15 @@ function bindGlobalInteractions(elements) {
       hideSuggestions(elements);
     }
 
+    if (
+      elements.temperatureSettingsDropdown &&
+      elements.temperatureUnitToggle &&
+      !elements.temperatureSettingsDropdown.contains(event.target) &&
+      !elements.temperatureUnitToggle.contains(event.target)
+    ) {
+      closeTemperatureSettingsDropdown(elements);
+    }
+
     if (!event.target.closest(".weather-history-item")) {
       closeAllHistoryDropdowns();
     }
@@ -296,6 +427,7 @@ function bindGlobalInteractions(elements) {
 async function fetchAndRenderWeather(city, elements, state) {
   try {
     const data = await fetchWeather(city);
+    state.activeQuery = city;
     renderWeather(elements, state, data);
   } catch (error) {
     console.error("Errore meteo:", error);

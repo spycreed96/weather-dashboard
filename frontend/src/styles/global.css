@@ -12,7 +12,6 @@ body {
 }
 
 .app-container {
-  padding: 24px;
   width: max(520px, 100%);
 }
 

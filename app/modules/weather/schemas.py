@@ -46,6 +46,10 @@ class WeatherResponse(BaseModel):
     pollen_index: int | None = None
     pollen_primary_allergy: str | None = None
     pollen_level: str | None = None
+    sunrise_time: str | None = None
+    sunset_time: str | None = None
+    sun_visibility_minutes: int | None = None
+    sun_progress: float | None = None
     moonrise_time: str | None = None
     moonset_time: str | None = None
     moon_visibility_minutes: int | None = None

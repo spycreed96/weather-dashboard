@@ -51,6 +51,7 @@ export function renderWeatherInsightCards(weatherData = null, forecastDays = [],
     renderAirQualityInsightCard(weatherData),
     renderMoonInsightCard(weatherData),
     renderMoonPhaseInsightCard(weatherData),
+    renderSunInsightCard(weatherData),
   ].join("");
 }
 
@@ -488,6 +489,42 @@ function renderMoonPhaseInsightCard(weatherData) {
         <div class="weather-insight-moon-phase-next-copy">
           <span>Prossima luna piena</span>
           <strong>${formatShortItalianDate(nextFullMoonDate)}</strong>
+        </div>
+      </div>
+    </article>
+  `;
+}
+
+function renderSunInsightCard(weatherData) {
+  const sunriseTime = weatherData?.sunrise_time || null;
+  const sunsetTime = weatherData?.sunset_time || null;
+  const sunVisibilityMinutes = toNumericValue(weatherData?.sun_visibility_minutes);
+  const sunProgress = toNumericValue(weatherData?.sun_progress);
+
+  if (!sunriseTime && !sunsetTime) {
+    return renderEmptyInsightCard("Sole", "Alba e tramonto del sole compariranno qui quando il forecast astronomico sara' disponibile.");
+  }
+
+  return `
+    <article class="weather-insight-card weather-insight-card--sun">
+      <div class="weather-insight-card-header">
+        <h4 class="weather-insight-card-title">Sole</h4>
+      </div>
+
+      <div class="weather-insight-sun-graphic">
+        ${renderSunGraphic(sunProgress)}
+      </div>
+
+      <p class="weather-insight-sun-duration">${formatDurationMinutes(sunVisibilityMinutes)}</p>
+
+      <div class="weather-insight-sun-times">
+        <div class="weather-insight-sun-time-block">
+          <strong>${sunriseTime || "--:--"}</strong>
+          <span>Alba</span>
+        </div>
+        <div class="weather-insight-sun-time-block weather-insight-sun-time-block--end">
+          <strong>${sunsetTime || "--:--"}</strong>
+          <span>Tramonto</span>
         </div>
       </div>
     </article>
@@ -1180,7 +1217,7 @@ function formatShortItalianDate(dateValue) {
   }).replace(/\./g, "");
 }
 
-function renderMoonGraphic(progress) {
+function getSkyTrackGeometry() {
   const arcStartPoint = { x: 56, y: 68 };
   const arcControlPoint = { x: 92, y: 14 };
   const arcEndPoint = { x: 134, y: 68 };
@@ -1188,23 +1225,74 @@ function renderMoonGraphic(progress) {
   const rightTrackEnd = { x: 160, y: 108 };
   const leftTrackControl = { x: 36, y: 92 };
   const rightTrackControl = { x: 148, y: 92 };
-  const fullArcPath = `M ${arcStartPoint.x} ${arcStartPoint.y} Q ${arcControlPoint.x} ${arcControlPoint.y} ${arcEndPoint.x} ${arcEndPoint.y}`;
-  const moonGraphicState = getMoonGraphicState(progress);
-  const moonPoint = getMoonGraphicPoint(moonGraphicState.segment, moonGraphicState.segmentProgress, {
-    leftTrackStart,
-    leftTrackControl,
+
+  return {
     arcStartPoint,
     arcControlPoint,
     arcEndPoint,
-    rightTrackControl,
+    leftTrackStart,
     rightTrackEnd,
-  });
+    leftTrackControl,
+    rightTrackControl,
+    fullArcPath: `M ${arcStartPoint.x} ${arcStartPoint.y} Q ${arcControlPoint.x} ${arcControlPoint.y} ${arcEndPoint.x} ${arcEndPoint.y}`,
+  };
+}
+
+function renderSunGraphic(progress) {
+  const geometry = getSkyTrackGeometry();
+  const skyGraphicState = getSkyGraphicState(progress);
+  const sunPoint = getSkyGraphicPoint(skyGraphicState.segment, skyGraphicState.segmentProgress, geometry);
+  const sunBodyClass = skyGraphicState.isOutsideWindow
+    ? "weather-insight-sun-body weather-insight-sun-body--inactive"
+    : "weather-insight-sun-body";
+  const sunCoreClass = skyGraphicState.isOutsideWindow
+    ? "weather-insight-sun-core weather-insight-sun-core--inactive"
+    : "weather-insight-sun-core";
+  const sunSpotMarkup = skyGraphicState.isOutsideWindow
+    ? `
+        <circle class="weather-insight-sun-spot" cx="-3.5" cy="-2.2" r="1.4" />
+        <circle class="weather-insight-sun-spot" cx="2.8" cy="-4.2" r="1.2" />
+        <circle class="weather-insight-sun-spot" cx="4.1" cy="1.8" r="1.5" />
+        <circle class="weather-insight-sun-spot" cx="-1.4" cy="4.4" r="1.3" />
+      `
+    : "";
+
+  return `
+    <svg class="weather-insight-sun-svg" viewBox="0 0 184 122" role="img" aria-label="Percorso del sole nel cielo">
+      <defs>
+        <linearGradient id="weather-insight-sun-arc-gradient" x1="56" y1="68" x2="134" y2="68" gradientUnits="userSpaceOnUse">
+          <stop offset="0%" stop-color="#e35f5d" />
+          <stop offset="52%" stop-color="#db4a52" />
+          <stop offset="100%" stop-color="#8537bd" />
+        </linearGradient>
+      </defs>
+
+      <path class="weather-insight-sun-shadow-path" d="M ${geometry.leftTrackStart.x} ${geometry.leftTrackStart.y} Q ${geometry.leftTrackControl.x} ${geometry.leftTrackControl.y} ${geometry.arcStartPoint.x} ${geometry.arcStartPoint.y}" />
+      <path class="weather-insight-sun-shadow-path" d="M ${geometry.arcEndPoint.x} ${geometry.arcEndPoint.y} Q ${geometry.rightTrackControl.x} ${geometry.rightTrackControl.y} ${geometry.rightTrackEnd.x} ${geometry.rightTrackEnd.y}" />
+      <line class="weather-insight-sun-horizon" x1="24" y1="68" x2="160" y2="68" />
+      <circle class="weather-insight-sun-horizon-point" cx="${geometry.arcStartPoint.x}" cy="${geometry.arcStartPoint.y}" r="6.5" />
+      <circle class="weather-insight-sun-horizon-point" cx="${geometry.arcEndPoint.x}" cy="${geometry.arcEndPoint.y}" r="6.5" />
+      <path class="weather-insight-sun-arc" d="${geometry.fullArcPath}" stroke="url(#weather-insight-sun-arc-gradient)" />
+      <g transform="translate(${sunPoint.x} ${sunPoint.y})">
+        <circle class="weather-insight-sun-backdrop" r="14" />
+        <circle class="${sunBodyClass}" r="10.8" />
+        <circle class="${sunCoreClass}" r="7.6" />
+        ${sunSpotMarkup}
+      </g>
+    </svg>
+  `;
+}
+
+function renderMoonGraphic(progress) {
+  const geometry = getSkyTrackGeometry();
+  const moonGraphicState = getSkyGraphicState(progress);
+  const moonPoint = getSkyGraphicPoint(moonGraphicState.segment, moonGraphicState.segmentProgress, geometry);
   const completedArcPath = moonGraphicState.isOutsideWindow
-    ? fullArcPath
-    : getQuadraticSegmentPath(arcStartPoint, arcControlPoint, arcEndPoint, 0, moonGraphicState.segmentProgress);
+    ? geometry.fullArcPath
+    : getQuadraticSegmentPath(geometry.arcStartPoint, geometry.arcControlPoint, geometry.arcEndPoint, 0, moonGraphicState.segmentProgress);
   const remainingArcPath = moonGraphicState.isOutsideWindow
     ? ""
-    : getQuadraticSegmentPath(arcStartPoint, arcControlPoint, arcEndPoint, moonGraphicState.segmentProgress, 1);
+    : getQuadraticSegmentPath(geometry.arcStartPoint, geometry.arcControlPoint, geometry.arcEndPoint, moonGraphicState.segmentProgress, 1);
   const moonBackdropClass = moonGraphicState.isOutsideWindow
     ? "weather-insight-moon-backdrop weather-insight-moon-backdrop--inactive"
     : "weather-insight-moon-backdrop";
@@ -1217,12 +1305,12 @@ function renderMoonGraphic(progress) {
 
   return `
     <svg class="weather-insight-moon-svg" viewBox="0 0 184 122" role="img" aria-label="Percorso della luna nel cielo">
-      <path class="weather-insight-moon-shadow-path" d="M ${leftTrackStart.x} ${leftTrackStart.y} Q ${leftTrackControl.x} ${leftTrackControl.y} ${arcStartPoint.x} ${arcStartPoint.y}" />
+      <path class="weather-insight-moon-shadow-path" d="M ${geometry.leftTrackStart.x} ${geometry.leftTrackStart.y} Q ${geometry.leftTrackControl.x} ${geometry.leftTrackControl.y} ${geometry.arcStartPoint.x} ${geometry.arcStartPoint.y}" />
       ${remainingArcPath ? `<path class="weather-insight-moon-shadow-path" d="${remainingArcPath}" />` : ""}
-      <path class="weather-insight-moon-shadow-path" d="M ${arcEndPoint.x} ${arcEndPoint.y} Q ${rightTrackControl.x} ${rightTrackControl.y} ${rightTrackEnd.x} ${rightTrackEnd.y}" />
+      <path class="weather-insight-moon-shadow-path" d="M ${geometry.arcEndPoint.x} ${geometry.arcEndPoint.y} Q ${geometry.rightTrackControl.x} ${geometry.rightTrackControl.y} ${geometry.rightTrackEnd.x} ${geometry.rightTrackEnd.y}" />
       <line class="weather-insight-moon-horizon" x1="24" y1="68" x2="160" y2="68" />
-      <circle class="weather-insight-moon-horizon-point" cx="${arcStartPoint.x}" cy="${arcStartPoint.y}" r="6.5" />
-      <circle class="weather-insight-moon-horizon-point" cx="${arcEndPoint.x}" cy="${arcEndPoint.y}" r="6.5" />
+      <circle class="weather-insight-moon-horizon-point" cx="${geometry.arcStartPoint.x}" cy="${geometry.arcStartPoint.y}" r="6.5" />
+      <circle class="weather-insight-moon-horizon-point" cx="${geometry.arcEndPoint.x}" cy="${geometry.arcEndPoint.y}" r="6.5" />
       <path class="weather-insight-moon-arc" d="${completedArcPath}" />
       <g transform="translate(${moonPoint.x} ${moonPoint.y})">
         <circle class="${moonBackdropClass}" r="14" />
@@ -1233,7 +1321,7 @@ function renderMoonGraphic(progress) {
   `;
 }
 
-function getMoonGraphicState(progress) {
+function getSkyGraphicState(progress) {
   if (progress === null) {
     return { segment: "in-window", segmentProgress: 0.54, isOutsideWindow: false };
   }
@@ -1241,7 +1329,7 @@ function getMoonGraphicState(progress) {
   if (progress < 0) {
     return {
       segment: "before-rise",
-      segmentProgress: clampMoonTrackProgress(1 + progress),
+      segmentProgress: clampSkyTrackProgress(1 + progress),
       isOutsideWindow: true,
     };
   }
@@ -1249,7 +1337,7 @@ function getMoonGraphicState(progress) {
   if (progress > 1) {
     return {
       segment: "after-set",
-      segmentProgress: clampMoonTrackProgress(progress - 1),
+      segmentProgress: clampSkyTrackProgress(progress - 1),
       isOutsideWindow: true,
     };
   }
@@ -1261,11 +1349,11 @@ function getMoonGraphicState(progress) {
   };
 }
 
-function clampMoonTrackProgress(progress) {
+function clampSkyTrackProgress(progress) {
   return Math.max(0.16, Math.min(0.92, progress));
 }
 
-function getMoonGraphicPoint(segment, segmentProgress, points) {
+function getSkyGraphicPoint(segment, segmentProgress, points) {
   if (segment === "before-rise") {
     return getQuadraticPoint(points.leftTrackStart, points.leftTrackControl, points.arcStartPoint, segmentProgress);
   }
