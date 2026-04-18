@@ -41,6 +41,8 @@ class WeatherResponse(BaseModel):
     visibility: int
     pressure: int
     pressure_tomorrow: int | None = None
+    uv_index: float | None = None
+    uv_index_tomorrow: float | None = None
     pollen_index: int | None = None
     pollen_primary_allergy: str | None = None
     pollen_level: str | None = None
@@ -48,6 +50,8 @@ class WeatherResponse(BaseModel):
     moonset_time: str | None = None
     moon_visibility_minutes: int | None = None
     moon_phase_label: str | None = None
+    moon_illumination: int | None = None
+    next_full_moon_date: str | None = None
     moon_progress: float | None = None
     air_quality: str
     air_quality_index: int | None = None

@@ -443,7 +443,7 @@ function addToHistory(elements, state, data) {
 
   const compactIconUrl = getWeatherIconUrl(data.icon, "");
   const iconMarkup = compactIconUrl
-    ? `<img src="${compactIconUrl}" alt="Weather" />`
+    ? `<img class="responsive-history-img" src="${compactIconUrl}" alt="Weather" />`
     : "<span>Cloud</span>";
 
   const historyEntry = createHistoryItem({

@@ -166,6 +166,14 @@ export function getWeatherIconUrl(icon, variant = "2x") {
     return "";
   }
 
+  if (icon.startsWith("http://") || icon.startsWith("https://")) {
+    return icon;
+  }
+
+  if (icon.startsWith("//")) {
+    return `https:${icon}`;
+  }
+
   const suffix = variant ? `@${variant}` : "";
   return `https://openweathermap.org/img/wn/${icon}${suffix}.png`;
 }

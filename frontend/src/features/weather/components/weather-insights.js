@@ -44,11 +44,13 @@ export function renderWeatherInsightCards(weatherData = null, forecastDays = [],
     renderPrecipitationInsightCard(weatherData),
     renderWindInsightCard(weatherData),
     renderHumidityInsightCard(weatherData, unit),
+    renderUvInsightCard(weatherData),
     renderPollenInsightCard(weatherData),
     renderVisibilityInsightCard(weatherData),
     renderPressureInsightCard(weatherData),
-    renderMoonInsightCard(weatherData),
     renderAirQualityInsightCard(weatherData),
+    renderMoonInsightCard(weatherData),
+    renderMoonPhaseInsightCard(weatherData),
   ].join("");
 }
 
@@ -294,6 +296,55 @@ function renderHumidityInsightCard(weatherData, unit) {
   `;
 }
 
+function renderUvInsightCard(weatherData) {
+  const uvToday = toNumericValue(weatherData?.uv_index);
+  const uvTomorrow = toNumericValue(weatherData?.uv_index_tomorrow);
+  const displayUv = uvTomorrow ?? uvToday;
+  const isTomorrowForecast = uvTomorrow !== null;
+
+  if (displayUv === null) {
+    return renderEmptyInsightCard("UV", "L'indice UV massimo apparira' qui non appena il forecast giornaliero sara' disponibile.");
+  }
+
+  const uvInsight = getUvInsight(displayUv);
+  const summaryLabel = isTomorrowForecast ? "Massimo previsto domani" : "Massimo previsto oggi";
+  const displayUvLabel = formatWholeInsightNumber(displayUv);
+
+  return `
+    <article class="weather-insight-card weather-insight-card--uv">
+      <div class="weather-insight-card-header">
+        <h4 class="weather-insight-card-title">UV</h4>
+      </div>
+
+      <div class="weather-insight-gauge-shell weather-insight-gauge-shell--uv">
+        ${renderSegmentedGauge({
+          value: displayUv,
+          maxValue: 12,
+          ariaLabel: `Indice UV ${displayUvLabel}`,
+          markerColor: uvInsight.markerColor,
+          segments: [
+            { stop: 2, color: "#77c93a" },
+            { stop: 5, color: "#ffe147" },
+            { stop: 7, color: "#ff9d28" },
+            { stop: 10, color: "#df4545" },
+            { stop: 12, color: "#7c3ec9" },
+          ],
+        })}
+
+        <div class="weather-insight-gauge-center weather-insight-gauge-center--stacked">
+          <strong>${displayUvLabel}</strong>
+          <span>${summaryLabel}</span>
+        </div>
+      </div>
+
+      <div class="weather-insight-copy">
+        <p class="weather-insight-status weather-insight-status--${uvInsight.tone}">${uvInsight.label}</p>
+        <p class="weather-insight-description">${buildUvInsightCopy(displayUv, isTomorrowForecast, uvInsight.label)}</p>
+      </div>
+    </article>
+  `;
+}
+
 function renderPollenInsightCard(weatherData) {
   const pollenIndex = toNumericValue(weatherData?.pollen_index);
   const pollenLevel = weatherData?.pollen_level || null;
@@ -401,6 +452,43 @@ function renderPressureInsightCard(weatherData) {
       <div class="weather-insight-copy">
         <p class="weather-insight-status weather-insight-status--${pressureTrend.tone}">${pressureTrend.label}</p>
         <p class="weather-insight-description">${buildPressureInsightCopy(pressure, pressureTomorrow)}</p>
+      </div>
+    </article>
+  `;
+}
+
+function renderMoonPhaseInsightCard(weatherData) {
+  const moonPhaseLabel = weatherData?.moon_phase_label || null;
+  const moonIllumination = toNumericValue(weatherData?.moon_illumination);
+  const nextFullMoonDate = weatherData?.next_full_moon_date || null;
+
+  if (moonPhaseLabel === null && moonIllumination === null) {
+    return renderEmptyInsightCard("Fase lunare", "La fase della luna comparira' qui quando il forecast astronomico sara' disponibile.");
+  }
+
+  return `
+    <article class="weather-insight-card weather-insight-card--moon-phase">
+      <div class="weather-insight-card-header">
+        <h4 class="weather-insight-card-title">Fase lunare</h4>
+      </div>
+
+      <div class="weather-insight-moon-phase-layout">
+        <div class="weather-insight-moon-phase-graphic">
+          ${renderMoonPhaseDisc(moonIllumination, moonPhaseLabel)}
+        </div>
+
+        <div class="weather-insight-moon-phase-stats">
+          <strong>${moonIllumination === null ? "--" : `${formatWholeInsightNumber(moonIllumination)}%`}</strong>
+          <span>Fase della luna</span>
+        </div>
+      </div>
+
+      <div class="weather-insight-moon-phase-next">
+        <span class="weather-insight-moon-phase-dot" aria-hidden="true"></span>
+        <div class="weather-insight-moon-phase-next-copy">
+          <span>Prossima luna piena</span>
+          <strong>${formatShortItalianDate(nextFullMoonDate)}</strong>
+        </div>
       </div>
     </article>
   `;
@@ -723,7 +811,7 @@ function buildPrecipitationInsightCopy(precipitationNext24h, label) {
 function renderWindCompass(windDirection) {
   const direction = getWindDirectionLabel(windDirection);
   const normalizedDirection = windDirection === null ? 0 : ((windDirection % 360) + 360) % 360;
-  const flowDirection = (normalizedDirection + 180) % 360;
+  const flowRotation = (normalizedDirection + 90) % 360;
   const ariaLabel = direction && windDirection !== null
     ? `Vento da ${direction.label} a ${Math.round(windDirection)} gradi`
     : "Direzione del vento non disponibile";
@@ -735,7 +823,7 @@ function renderWindCompass(windDirection) {
       <span class="weather-insight-compass-letter weather-insight-compass-letter--south">S</span>
       <span class="weather-insight-compass-letter weather-insight-compass-letter--west">O</span>
       <span class="weather-insight-compass-ring"></span>
-      <span class="weather-insight-compass-arrow" style="transform: translate(-50%, -50%) rotate(${flowDirection}deg);"></span>
+      <span class="weather-insight-compass-arrow" style="transform: translate(-50%, -50%) rotate(${flowRotation}deg);"></span>
       <span class="weather-insight-compass-center"></span>
     </div>
   `;
@@ -830,6 +918,48 @@ function buildHumidityInsightCopy(humidity, dewPoint, unit) {
   }
 
   return `Umidita' relativa al ${Math.round(humidity)}%${dewPointCopy}. L'aria puo' risultare piu' pesante soprattutto nelle ore meno ventilate.`;
+}
+
+function getUvInsight(uvIndex) {
+  if (uvIndex <= 2) {
+    return { label: "Basso", tone: "low", markerColor: "#78cf41" };
+  }
+
+  if (uvIndex <= 5) {
+    return { label: "Moderato", tone: "moderate", markerColor: "#f4d34b" };
+  }
+
+  if (uvIndex <= 7) {
+    return { label: "Alto", tone: "high", markerColor: "#ff9d28" };
+  }
+
+  if (uvIndex <= 10) {
+    return { label: "Molto alto", tone: "very-high", markerColor: "#e14d4a" };
+  }
+
+  return { label: "Estremo", tone: "severe", markerColor: "#7c3ec9" };
+}
+
+function buildUvInsightCopy(uvIndex, isTomorrowForecast, label) {
+  const reference = isTomorrowForecast ? "di domani" : "di oggi";
+
+  if (uvIndex <= 2) {
+    return `Il livello massimo di UV ${reference} restera' basso, con esposizione solare generalmente contenuta.`;
+  }
+
+  if (uvIndex <= 5) {
+    return `Il livello massimo di UV ${reference} sara' moderato. Meglio valutare protezione nelle ore centrali.`;
+  }
+
+  if (uvIndex <= 7) {
+    return `Il livello massimo di UV ${reference} sara' ${label.toLowerCase()}. Conviene limitare l'esposizione diretta nelle ore centrali.`;
+  }
+
+  if (uvIndex <= 10) {
+    return `Il livello massimo di UV ${reference} sara' ${label.toLowerCase()}. Consigliata protezione alta e pause frequenti all'ombra.`;
+  }
+
+  return `Il livello massimo di UV ${reference} sara' ${label.toLowerCase()}. Meglio ridurre al minimo l'esposizione diretta nelle ore piu' intense.`;
 }
 
 function getPollenInsight(pollenIndex, hasPollenData) {
@@ -1002,26 +1132,149 @@ function getCurrentTimeLabel() {
   });
 }
 
+function renderMoonPhaseDisc(illumination, phaseLabel) {
+  const safeIllumination = illumination === null ? 50 : Math.max(0, Math.min(100, illumination));
+  const radius = 46;
+  const center = 56;
+  const shadowOffset = (safeIllumination / 100) * radius * 2;
+  const shadowCenterX = isWaxingMoonPhase(phaseLabel) ? center - shadowOffset : center + shadowOffset;
+  const clipId = `moon-phase-disc-${safeIllumination}-${(phaseLabel || "nd").replace(/\s+/g, "-").toLowerCase()}`;
+
+  return `
+    <svg class="weather-insight-moon-phase-svg" viewBox="0 0 112 112" role="img" aria-label="Fase lunare al ${formatWholeInsightNumber(safeIllumination)}%">
+      <defs>
+        <clipPath id="${clipId}">
+          <circle cx="${center}" cy="${center}" r="${radius}" />
+        </clipPath>
+      </defs>
+      <circle class="weather-insight-moon-phase-base" cx="${center}" cy="${center}" r="${radius}" />
+      ${safeIllumination >= 100 ? "" : `<circle class="weather-insight-moon-phase-shadow" cx="${shadowCenterX}" cy="${center}" r="${radius}" clip-path="url(#${clipId})" />`}
+      <circle class="weather-insight-moon-phase-outline" cx="${center}" cy="${center}" r="${radius}" />
+    </svg>
+  `;
+}
+
+function isWaxingMoonPhase(phaseLabel) {
+  if (!phaseLabel) {
+    return true;
+  }
+
+  return phaseLabel.includes("crescente") || phaseLabel === "Primo quarto" || phaseLabel === "Luna nuova";
+}
+
+function formatShortItalianDate(dateValue) {
+  if (!dateValue) {
+    return "n.d.";
+  }
+
+  const [year, month, day] = String(dateValue).split("-").map(Number);
+  const parsedDate = new Date(year, (month || 1) - 1, day || 1);
+
+  if (Number.isNaN(parsedDate.getTime())) {
+    return "n.d.";
+  }
+
+  return parsedDate.toLocaleDateString("it-IT", {
+    day: "numeric",
+    month: "short",
+  }).replace(/\./g, "");
+}
+
 function renderMoonGraphic(progress) {
-  const clampedProgress = progress === null ? 0.54 : Math.max(0.05, Math.min(0.95, progress));
-  const startPoint = { x: 28, y: 96 };
-  const controlPoint = { x: 92, y: 16 };
-  const endPoint = { x: 156, y: 96 };
-  const moonPoint = getQuadraticPoint(startPoint, controlPoint, endPoint, clampedProgress);
+  const arcStartPoint = { x: 56, y: 68 };
+  const arcControlPoint = { x: 92, y: 14 };
+  const arcEndPoint = { x: 134, y: 68 };
+  const leftTrackStart = { x: 24, y: 108 };
+  const rightTrackEnd = { x: 160, y: 108 };
+  const leftTrackControl = { x: 36, y: 92 };
+  const rightTrackControl = { x: 148, y: 92 };
+  const fullArcPath = `M ${arcStartPoint.x} ${arcStartPoint.y} Q ${arcControlPoint.x} ${arcControlPoint.y} ${arcEndPoint.x} ${arcEndPoint.y}`;
+  const moonGraphicState = getMoonGraphicState(progress);
+  const moonPoint = getMoonGraphicPoint(moonGraphicState.segment, moonGraphicState.segmentProgress, {
+    leftTrackStart,
+    leftTrackControl,
+    arcStartPoint,
+    arcControlPoint,
+    arcEndPoint,
+    rightTrackControl,
+    rightTrackEnd,
+  });
+  const completedArcPath = moonGraphicState.isOutsideWindow
+    ? fullArcPath
+    : getQuadraticSegmentPath(arcStartPoint, arcControlPoint, arcEndPoint, 0, moonGraphicState.segmentProgress);
+  const remainingArcPath = moonGraphicState.isOutsideWindow
+    ? ""
+    : getQuadraticSegmentPath(arcStartPoint, arcControlPoint, arcEndPoint, moonGraphicState.segmentProgress, 1);
+  const moonBackdropClass = moonGraphicState.isOutsideWindow
+    ? "weather-insight-moon-backdrop weather-insight-moon-backdrop--inactive"
+    : "weather-insight-moon-backdrop";
+  const moonBodyClass = moonGraphicState.isOutsideWindow
+    ? "weather-insight-moon-body weather-insight-moon-body--inactive"
+    : "weather-insight-moon-body";
+  const moonCutClass = moonGraphicState.isOutsideWindow
+    ? "weather-insight-moon-cut weather-insight-moon-cut--inactive"
+    : "weather-insight-moon-cut";
 
   return `
     <svg class="weather-insight-moon-svg" viewBox="0 0 184 122" role="img" aria-label="Percorso della luna nel cielo">
-      <path class="weather-insight-moon-shadow-path" d="M 18 112 Q 92 54 166 112" />
-      <line class="weather-insight-moon-horizon" x1="28" y1="68" x2="156" y2="68" />
-      <circle class="weather-insight-moon-horizon-point" cx="56" cy="68" r="6.5" />
-      <circle class="weather-insight-moon-horizon-point" cx="134" cy="68" r="6.5" />
-      <path class="weather-insight-moon-arc" d="M 56 68 Q 92 14 134 68" />
+      <path class="weather-insight-moon-shadow-path" d="M ${leftTrackStart.x} ${leftTrackStart.y} Q ${leftTrackControl.x} ${leftTrackControl.y} ${arcStartPoint.x} ${arcStartPoint.y}" />
+      ${remainingArcPath ? `<path class="weather-insight-moon-shadow-path" d="${remainingArcPath}" />` : ""}
+      <path class="weather-insight-moon-shadow-path" d="M ${arcEndPoint.x} ${arcEndPoint.y} Q ${rightTrackControl.x} ${rightTrackControl.y} ${rightTrackEnd.x} ${rightTrackEnd.y}" />
+      <line class="weather-insight-moon-horizon" x1="24" y1="68" x2="160" y2="68" />
+      <circle class="weather-insight-moon-horizon-point" cx="${arcStartPoint.x}" cy="${arcStartPoint.y}" r="6.5" />
+      <circle class="weather-insight-moon-horizon-point" cx="${arcEndPoint.x}" cy="${arcEndPoint.y}" r="6.5" />
+      <path class="weather-insight-moon-arc" d="${completedArcPath}" />
       <g transform="translate(${moonPoint.x} ${moonPoint.y})">
-        <circle class="weather-insight-moon-body" r="12" />
-        <circle class="weather-insight-moon-cut" cx="5" cy="-4" r="8" />
+        <circle class="${moonBackdropClass}" r="14" />
+        <circle class="${moonBodyClass}" r="10.8" />
+        <circle class="${moonCutClass}" cx="4.8" cy="-3.8" r="7.6" />
       </g>
     </svg>
   `;
+}
+
+function getMoonGraphicState(progress) {
+  if (progress === null) {
+    return { segment: "in-window", segmentProgress: 0.54, isOutsideWindow: false };
+  }
+
+  if (progress < 0) {
+    return {
+      segment: "before-rise",
+      segmentProgress: clampMoonTrackProgress(1 + progress),
+      isOutsideWindow: true,
+    };
+  }
+
+  if (progress > 1) {
+    return {
+      segment: "after-set",
+      segmentProgress: clampMoonTrackProgress(progress - 1),
+      isOutsideWindow: true,
+    };
+  }
+
+  return {
+    segment: "in-window",
+    segmentProgress: Math.max(0, Math.min(1, progress)),
+    isOutsideWindow: false,
+  };
+}
+
+function clampMoonTrackProgress(progress) {
+  return Math.max(0.16, Math.min(0.92, progress));
+}
+
+function getMoonGraphicPoint(segment, segmentProgress, points) {
+  if (segment === "before-rise") {
+    return getQuadraticPoint(points.leftTrackStart, points.leftTrackControl, points.arcStartPoint, segmentProgress);
+  }
+
+  if (segment === "after-set") {
+    return getQuadraticPoint(points.arcEndPoint, points.rightTrackControl, points.rightTrackEnd, segmentProgress);
+  }
+
+  return getQuadraticPoint(points.arcStartPoint, points.arcControlPoint, points.arcEndPoint, segmentProgress);
 }
 
 function getQuadraticPoint(startPoint, controlPoint, endPoint, progress) {
@@ -1030,6 +1283,46 @@ function getQuadraticPoint(startPoint, controlPoint, endPoint, progress) {
   return {
     x: inverse * inverse * startPoint.x + 2 * inverse * progress * controlPoint.x + progress * progress * endPoint.x,
     y: inverse * inverse * startPoint.y + 2 * inverse * progress * controlPoint.y + progress * progress * endPoint.y,
+  };
+}
+
+function getQuadraticSegmentPath(startPoint, controlPoint, endPoint, startProgress, endProgress) {
+  if (endProgress <= startProgress) {
+    const point = getQuadraticPoint(startPoint, controlPoint, endPoint, startProgress);
+    return `M ${point.x} ${point.y}`;
+  }
+
+  if (startProgress <= 0 && endProgress >= 1) {
+    return `M ${startPoint.x} ${startPoint.y} Q ${controlPoint.x} ${controlPoint.y} ${endPoint.x} ${endPoint.y}`;
+  }
+
+  const [leftSegment] = splitQuadraticCurve(startPoint, controlPoint, endPoint, endProgress);
+  const normalizedStart = endProgress === 0 ? 0 : startProgress / endProgress;
+  const [, targetSegment] = splitQuadraticCurve(
+    leftSegment.start,
+    leftSegment.control,
+    leftSegment.end,
+    normalizedStart,
+  );
+
+  return `M ${targetSegment.start.x} ${targetSegment.start.y} Q ${targetSegment.control.x} ${targetSegment.control.y} ${targetSegment.end.x} ${targetSegment.end.y}`;
+}
+
+function splitQuadraticCurve(startPoint, controlPoint, endPoint, progress) {
+  const point01 = interpolatePoint(startPoint, controlPoint, progress);
+  const point12 = interpolatePoint(controlPoint, endPoint, progress);
+  const splitPoint = interpolatePoint(point01, point12, progress);
+
+  return [
+    { start: startPoint, control: point01, end: splitPoint },
+    { start: splitPoint, control: point12, end: endPoint },
+  ];
+}
+
+function interpolatePoint(startPoint, endPoint, progress) {
+  return {
+    x: startPoint.x + (endPoint.x - startPoint.x) * progress,
+    y: startPoint.y + (endPoint.y - startPoint.y) * progress,
   };
 }
 
@@ -1053,7 +1346,7 @@ function buildMoonInsightCopy(moonriseTime, moonsetTime, moonVisibilityMinutes, 
     return `${moonPhaseLabel}. I prossimi orari lunari non sono ancora disponibili per questa localita'.`;
   }
 
-  return `${moonPhaseLabel}, visibile per ${durationCopy}, con alba lunare alle ${moonriseTime} e tramonto alle ${moonsetTime}.`;
+  return `${moonPhaseLabel}, sopra l'orizzonte per ${durationCopy}, con alba lunare alle ${moonriseTime} e tramonto alle ${moonsetTime}.`;
 }
 
 function getAirQualityInsight(airQuality) {

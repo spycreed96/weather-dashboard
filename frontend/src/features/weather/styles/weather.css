@@ -319,6 +319,12 @@
     linear-gradient(180deg, #303865 0%, #27314f 100%);
 }
 
+.weather-insight-card--uv {
+  background:
+    radial-gradient(circle at top center, rgba(255, 184, 73, 0.2), transparent 34%),
+    linear-gradient(180deg, #313760 0%, #27314f 100%);
+}
+
 .weather-insight-card--pollen {
   background:
     radial-gradient(circle at top center, rgba(177, 227, 58, 0.18), transparent 34%),
@@ -341,6 +347,12 @@
   background:
     radial-gradient(circle at top center, rgba(255, 188, 72, 0.18), transparent 34%),
     linear-gradient(180deg, #31385f 0%, #27304d 100%);
+}
+
+.weather-insight-card--moon-phase {
+  background:
+    radial-gradient(circle at top center, rgba(255, 205, 92, 0.2), transparent 34%),
+    linear-gradient(180deg, #31375e 0%, #27314f 100%);
 }
 
 .weather-insight-card--aqi {
@@ -754,7 +766,7 @@
 
 .weather-insight-gauge-center--stacked {
   gap: 8px;
-  transform: translate(-50%, -34%);
+  transform: translate(-50%, -24%);
   width: auto;
 }
 
@@ -763,6 +775,20 @@
   font-size: 0.78rem;
   line-height: 1.35;
   text-align: center;
+}
+
+.weather-insight-gauge-shell--pollen .weather-insight-gauge-center,
+.weather-insight-gauge-shell--aqi .weather-insight-gauge-center {
+  transform: translate(-50%, -30%);
+}
+
+.weather-insight-gauge-shell--pollen .weather-insight-gauge-center strong,
+.weather-insight-gauge-shell--aqi .weather-insight-gauge-center strong {
+  display: block;
+  font-variant-numeric: tabular-nums;
+  min-width: 2.8ch;
+  text-align: center;
+  transform: translateY(-10px);
 }
 
 .weather-insight-pollen-summary {
@@ -878,6 +904,97 @@
   z-index: 1;
 }
 
+.weather-insight-moon-phase-layout {
+  align-items: center;
+  display: grid;
+  gap: 18px;
+  grid-template-columns: 112px minmax(0, 1fr);
+  margin-top: 6px;
+  position: relative;
+  z-index: 1;
+}
+
+.weather-insight-moon-phase-graphic {
+  display: flex;
+  justify-content: center;
+}
+
+.weather-insight-moon-phase-svg {
+  display: block;
+  height: auto;
+  width: 112px;
+}
+
+.weather-insight-moon-phase-base {
+  fill: #f9c43d;
+}
+
+.weather-insight-moon-phase-shadow {
+  fill: #4e5478;
+}
+
+.weather-insight-moon-phase-outline {
+  fill: none;
+  stroke: rgba(255, 255, 255, 0.12);
+  stroke-width: 1.2;
+}
+
+.weather-insight-moon-phase-stats {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 0;
+}
+
+.weather-insight-moon-phase-stats strong {
+  font-size: 3rem;
+  font-weight: 700;
+  letter-spacing: -0.05em;
+  line-height: 0.9;
+}
+
+.weather-insight-moon-phase-stats span {
+  color: rgba(255, 255, 255, 0.78);
+  font-size: 0.92rem;
+  line-height: 1.3;
+}
+
+.weather-insight-moon-phase-next {
+  align-items: center;
+  display: flex;
+  gap: 10px;
+  margin-top: 12px;
+  position: relative;
+  z-index: 1;
+}
+
+.weather-insight-moon-phase-dot {
+  background: #f9c43d;
+  border-radius: 50%;
+  display: inline-block;
+  flex-shrink: 0;
+  height: 32px;
+  width: 32px;
+}
+
+.weather-insight-moon-phase-next-copy {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.weather-insight-moon-phase-next-copy span {
+  color: rgba(255, 255, 255, 0.78);
+  font-size: 0.9rem;
+  line-height: 1.2;
+}
+
+.weather-insight-moon-phase-next-copy strong {
+  font-size: 1.55rem;
+  font-weight: 700;
+  line-height: 1;
+}
+
 .weather-insight-moon-svg {
   display: block;
   height: auto;
@@ -909,14 +1026,28 @@
   stroke-width: 8;
 }
 
+.weather-insight-moon-backdrop {
+  fill: rgba(255, 255, 255, 0.97);
+}
+
+.weather-insight-moon-backdrop--inactive {
+  fill: rgba(226, 231, 242, 0.9);
+}
+
 .weather-insight-moon-body {
   fill: #ffc04a;
-  stroke: #ffffff;
-  stroke-width: 4;
+}
+
+.weather-insight-moon-body--inactive {
+  fill: #727995;
 }
 
 .weather-insight-moon-cut {
   fill: #fff8ec;
+}
+
+.weather-insight-moon-cut--inactive {
+  fill: #edf1f8;
 }
 
 .weather-insight-moon-duration {
@@ -1134,7 +1265,6 @@
   font-size: 0.96rem;
   line-height: 1.5;
   margin: 0;
-  max-width: 30ch;
 }
 
 .weather-insight-card--empty {
@@ -1300,10 +1430,6 @@
   fill: var(--muted);
   font-size: 13px;
   font-weight: 600;
-}
-
-.forecast-chart-axis-label-degree {
-  font-size: 0.7em;
 }
 
 .forecast-chart-axis-label-unit {
@@ -1526,12 +1652,16 @@
 }
 
 .weather-icon {
-  width: 70px;
-  height: 100px;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  width: 64px;
+  height: 64px;
 }
 
 .weather-icon img {
   display: block;
+  margin: auto;
 }
 
 .temperature {
@@ -1792,6 +1922,13 @@
   justify-content: center;
   margin-bottom: 4px;
   width: 30px;
+}
+
+.responsive-history-img {
+  display: block;
+  height: 100%;
+  object-fit: contain;
+  width: 100%;
 }
 
 .history-temperature {
