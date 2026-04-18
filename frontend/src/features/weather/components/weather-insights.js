@@ -4,6 +4,7 @@ import {
   formatMillimeters,
   formatSpeed,
   formatTemperature,
+  getAirQualityPresentation,
   getWeatherIconUrl,
   renderDetailInlineTemperature,
   toNumericValue,
@@ -18,6 +19,9 @@ const INSIGHT_CHART_PADDING = {
   bottom: 12,
   left: 12,
 };
+const GAUGE_START_ANGLE = -140;
+const GAUGE_END_ANGLE = 140;
+const GAUGE_SWEEP_ANGLE = GAUGE_END_ANGLE - GAUGE_START_ANGLE;
 
 export function renderWeatherInsightsSection() {
   return `
@@ -38,6 +42,13 @@ export function renderWeatherInsightCards(weatherData = null, forecastDays = [],
     renderPerceivedInsightCard(weatherData, unit),
     renderCloudinessInsightCard(weatherData, currentDay),
     renderPrecipitationInsightCard(weatherData),
+    renderWindInsightCard(weatherData),
+    renderHumidityInsightCard(weatherData, unit),
+    renderPollenInsightCard(weatherData),
+    renderVisibilityInsightCard(weatherData),
+    renderPressureInsightCard(weatherData),
+    renderMoonInsightCard(weatherData),
+    renderAirQualityInsightCard(weatherData),
   ].join("");
 }
 
@@ -183,6 +194,304 @@ function renderPrecipitationInsightCard(weatherData) {
       <div class="weather-insight-copy">
         <p class="weather-insight-status weather-insight-status--${precipitationInsight.tone}">${precipitationInsight.label}</p>
         <p class="weather-insight-description">${buildPrecipitationInsightCopy(precipitationNext24h, precipitationInsight.label)}</p>
+      </div>
+    </article>
+  `;
+}
+
+function renderWindInsightCard(weatherData) {
+  const windSpeed = toNumericValue(weatherData?.wind_speed);
+  const windGust = toNumericValue(weatherData?.wind_gust);
+  const windDirection = toNumericValue(weatherData?.wind_direction);
+
+  if (windSpeed === null && windGust === null) {
+    return renderEmptyInsightCard("Vento", "Velocita', raffiche e direzione del vento appariranno qui quando i dati correnti saranno disponibili.");
+  }
+
+  const resolvedSpeed = windSpeed ?? windGust ?? 0;
+  const resolvedGust = windGust ?? windSpeed ?? resolvedSpeed;
+  const windInsight = getWindInsight(resolvedSpeed, resolvedGust);
+  const direction = getWindDirectionLabel(windDirection);
+  const heading = direction && windDirection !== null ? `Da ${direction.short} (${Math.round(windDirection)}°)` : "Direzione variabile";
+
+  return `
+    <article class="weather-insight-card weather-insight-card--wind">
+      <div class="weather-insight-card-header">
+        <h4 class="weather-insight-card-title">Vento</h4>
+      </div>
+
+      <div class="weather-insight-wind-layout">
+        ${renderWindCompass(windDirection)}
+
+        <div class="weather-insight-wind-metrics">
+          <p class="weather-insight-mini-label">${heading}</p>
+
+          <div class="weather-insight-wind-reading">
+            <strong>${formatWholeInsightNumber(resolvedSpeed)}</strong>
+            <span>km/h</span>
+          </div>
+          <p class="weather-insight-wind-reading-caption">Velocita' media</p>
+
+          <div class="weather-insight-wind-reading weather-insight-wind-reading--secondary">
+            <strong>${formatWholeInsightNumber(resolvedGust)}</strong>
+            <span>km/h</span>
+          </div>
+          <p class="weather-insight-wind-reading-caption">Raffiche</p>
+        </div>
+      </div>
+
+      <div class="weather-insight-copy">
+        <p class="weather-insight-status weather-insight-status--${windInsight.tone}">${windInsight.label}</p>
+        <p class="weather-insight-description">${buildWindInsightCopy(resolvedSpeed, resolvedGust, direction)}</p>
+      </div>
+    </article>
+  `;
+}
+
+function renderHumidityInsightCard(weatherData, unit) {
+  const humidity = toNumericValue(weatherData?.humidity);
+  const dewPoint = toNumericValue(weatherData?.dew_point);
+
+  if (humidity === null && dewPoint === null) {
+    return renderEmptyInsightCard("Umidita'", "Umidita' relativa e punto di rugiada saranno mostrati qui non appena saranno disponibili i dati correnti.");
+  }
+
+  const normalizedHumidity = humidity ?? 0;
+  const humidityInsight = getHumidityInsight(normalizedHumidity, dewPoint);
+
+  return `
+    <article class="weather-insight-card weather-insight-card--humidity">
+      <div class="weather-insight-card-header">
+        <h4 class="weather-insight-card-title">Umidita'</h4>
+      </div>
+
+      <div class="weather-insight-humidity-layout">
+        <div class="weather-insight-humidity-bars" aria-hidden="true">
+          ${renderHumidityBars(normalizedHumidity)}
+        </div>
+
+        <div class="weather-insight-humidity-stats">
+          <div class="weather-insight-humidity-stat">
+            <strong class="weather-insight-humidity-value">
+              <span class="weather-insight-humidity-number">${formatWholeInsightNumber(normalizedHumidity)}</span>
+              <small class="weather-insight-humidity-unit">%</small>
+            </strong>
+            <span class="weather-insight-humidity-caption">Umidita' relativa</span>
+          </div>
+
+          <div class="weather-insight-humidity-stat weather-insight-humidity-stat--secondary">
+            <strong class="weather-insight-humidity-value weather-insight-humidity-value--temperature" aria-label="${formatDetailTemperature(dewPoint, unit)}">${renderDetailInlineTemperature(dewPoint, unit)}</strong>
+            <span class="weather-insight-humidity-caption">Punto di rugiada</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="weather-insight-copy">
+        <p class="weather-insight-status weather-insight-status--${humidityInsight.tone}">${humidityInsight.label}</p>
+        <p class="weather-insight-description">${buildHumidityInsightCopy(normalizedHumidity, dewPoint, unit)}</p>
+      </div>
+    </article>
+  `;
+}
+
+function renderPollenInsightCard(weatherData) {
+  const pollenIndex = toNumericValue(weatherData?.pollen_index);
+  const pollenLevel = weatherData?.pollen_level || null;
+  const primaryAllergy = weatherData?.pollen_primary_allergy || null;
+  const hasPollenData = pollenIndex !== null && pollenLevel !== null;
+  const displayPollenIndex = pollenIndex ?? 0;
+  const pollenInsight = getPollenInsight(displayPollenIndex, hasPollenData);
+
+  return `
+    <article class="weather-insight-card weather-insight-card--pollen">
+      <div class="weather-insight-card-header">
+        <h4 class="weather-insight-card-title">Polline</h4>
+      </div>
+
+      <div class="weather-insight-gauge-shell weather-insight-gauge-shell--pollen">
+        ${renderSegmentedGauge({
+          value: displayPollenIndex,
+          maxValue: 100,
+          ariaLabel: hasPollenData ? `Indice pollinico ${formatWholeInsightNumber(displayPollenIndex)}` : "Indice pollinico non disponibile",
+          markerColor: pollenInsight.markerColor,
+          segments: [
+            { stop: 25, color: "#52d433" },
+            { stop: 50, color: "#9ad816" },
+            { stop: 75, color: "#ffd34a" },
+            { stop: 100, color: "#ff9d37" },
+          ],
+        })}
+
+        <div class="weather-insight-gauge-center weather-insight-gauge-center--stacked">
+          <strong>${hasPollenData ? formatWholeInsightNumber(displayPollenIndex) : "--"}</strong>
+        </div>
+      </div>
+
+      <div class="weather-insight-pollen-summary">
+        <span class="weather-insight-pollen-summary-label">Allergia principale:</span>
+        <strong class="weather-insight-pollen-summary-value">${primaryAllergy || "n.d."}</strong>
+      </div>
+
+      <div class="weather-insight-copy">
+        <p class="weather-insight-status weather-insight-status--${pollenInsight.tone}">${pollenInsight.label}</p>
+        <p class="weather-insight-description">${buildPollenInsightCopy(pollenLevel, primaryAllergy, hasPollenData)}</p>
+      </div>
+    </article>
+  `;
+}
+
+function renderVisibilityInsightCard(weatherData) {
+  const visibility = toNumericValue(weatherData?.visibility);
+
+  if (visibility === null) {
+    return renderEmptyInsightCard("Visibilita'", "La distanza di visibilita' comparira' qui non appena i dati correnti saranno disponibili.");
+  }
+
+  const visibilityInsight = getVisibilityInsight(visibility);
+
+  return `
+    <article class="weather-insight-card weather-insight-card--visibility">
+      <div class="weather-insight-card-header">
+        <h4 class="weather-insight-card-title">Visibilita'</h4>
+      </div>
+
+      <div class="weather-insight-visibility-graphic" aria-hidden="true">
+        ${renderVisibilityBars(visibility)}
+      </div>
+
+      <div class="weather-insight-visibility-value">
+        <strong>${formatWholeInsightNumber(visibility)}</strong>
+        <span>km</span>
+      </div>
+
+      <div class="weather-insight-copy">
+        <p class="weather-insight-status weather-insight-status--${visibilityInsight.tone}">${visibilityInsight.label}</p>
+        <p class="weather-insight-description">${buildVisibilityInsightCopy(visibility)}</p>
+      </div>
+    </article>
+  `;
+}
+
+function renderPressureInsightCard(weatherData) {
+  const pressure = toNumericValue(weatherData?.pressure);
+  const pressureTomorrow = toNumericValue(weatherData?.pressure_tomorrow);
+
+  if (pressure === null) {
+    return renderEmptyInsightCard("Pressione", "La pressione atmosferica e la sua tendenza saranno mostrate qui dopo il caricamento dei dati correnti.");
+  }
+
+  const pressureTrend = getPressureTrend(pressure, pressureTomorrow);
+
+  return `
+    <article class="weather-insight-card weather-insight-card--pressure">
+      <div class="weather-insight-card-header">
+        <h4 class="weather-insight-card-title">Pressione</h4>
+      </div>
+
+      <div class="weather-insight-pressure-graphic">
+        ${renderPressureTrendGraphic(pressure, pressureTomorrow)}
+      </div>
+
+      <div class="weather-insight-pressure-reading">
+        <strong>${formatWholeInsightNumber(pressure)}</strong>
+        <span>hPa</span>
+      </div>
+      <p class="weather-insight-mini-label">${getCurrentTimeLabel()} (Ora)</p>
+
+      <div class="weather-insight-copy">
+        <p class="weather-insight-status weather-insight-status--${pressureTrend.tone}">${pressureTrend.label}</p>
+        <p class="weather-insight-description">${buildPressureInsightCopy(pressure, pressureTomorrow)}</p>
+      </div>
+    </article>
+  `;
+}
+
+function renderMoonInsightCard(weatherData) {
+  const moonriseTime = weatherData?.moonrise_time || null;
+  const moonsetTime = weatherData?.moonset_time || null;
+  const moonVisibilityMinutes = toNumericValue(weatherData?.moon_visibility_minutes);
+  const moonPhaseLabel = weatherData?.moon_phase_label || "Fase non disponibile";
+  const moonProgress = toNumericValue(weatherData?.moon_progress);
+
+  if (!moonriseTime && !moonsetTime) {
+    return renderEmptyInsightCard("Luna", "Sorger e tramonto della luna compariranno qui quando il forecast astronomico sara' disponibile.");
+  }
+
+  return `
+    <article class="weather-insight-card weather-insight-card--moon">
+      <div class="weather-insight-card-header">
+        <h4 class="weather-insight-card-title">Luna</h4>
+      </div>
+
+      <div class="weather-insight-moon-graphic">
+        ${renderMoonGraphic(moonProgress)}
+      </div>
+
+      <p class="weather-insight-moon-duration">${formatDurationMinutes(moonVisibilityMinutes)}</p>
+
+      <div class="weather-insight-moon-times">
+        <div class="weather-insight-moon-time-block">
+          <strong>${moonriseTime || "--:--"}</strong>
+          <span>Sorge</span>
+        </div>
+        <div class="weather-insight-moon-time-block weather-insight-moon-time-block--end">
+          <strong>${moonsetTime || "--:--"}</strong>
+          <span>Tramonta</span>
+        </div>
+      </div>
+
+      <div class="weather-insight-copy">
+        <p class="weather-insight-status weather-insight-status--lunar">${moonPhaseLabel}</p>
+        <p class="weather-insight-description">${buildMoonInsightCopy(moonriseTime, moonsetTime, moonVisibilityMinutes, moonPhaseLabel)}</p>
+      </div>
+    </article>
+  `;
+}
+
+function renderAirQualityInsightCard(weatherData) {
+  const airQuality = weatherData?.air_quality || "N/A";
+  const airQualityIndex = toNumericValue(weatherData?.air_quality_index);
+  const pollutant = weatherData?.air_quality_primary_pollutant || "";
+  const pollutantValue = toNumericValue(weatherData?.air_quality_primary_pollutant_value);
+  const pollutantUnit = weatherData?.air_quality_primary_pollutant_unit || "";
+
+  if (airQuality === "N/A" && airQualityIndex === null) {
+    return renderEmptyInsightCard("AQI", "Indice di qualita' dell'aria e inquinante dominante saranno visualizzati qui quando i dati di monitoraggio saranno disponibili.");
+  }
+
+  const airQualityPresentation = getAirQualityPresentation(airQuality);
+  const airQualityInsight = getAirQualityInsight(airQuality);
+  const displayAirQualityIndex = airQualityIndex ?? getFallbackAirQualityIndex(airQuality) ?? 0;
+
+  return `
+    <article class="weather-insight-card weather-insight-card--aqi">
+      <div class="weather-insight-card-header">
+        <h4 class="weather-insight-card-title">AQI</h4>
+      </div>
+
+      <div class="weather-insight-gauge-shell weather-insight-gauge-shell--aqi">
+        ${renderSegmentedGauge({
+          value: displayAirQualityIndex,
+          maxValue: 300,
+          ariaLabel: `Indice di qualita' dell'aria ${formatGaugeNumber(displayAirQualityIndex)}`,
+          markerColor: airQualityInsight.markerColor,
+          segments: [
+            { stop: 50, color: "#6ed17a" },
+            { stop: 100, color: "#d0c83f" },
+            { stop: 150, color: "#efab28" },
+            { stop: 200, color: "#dd6c2f" },
+            { stop: 300, color: "#5c6487" },
+          ],
+        })}
+
+        <div class="weather-insight-gauge-center">
+          <strong>${formatGaugeNumber(displayAirQualityIndex)}</strong>
+        </div>
+      </div>
+
+      <div class="weather-insight-copy">
+        <p class="weather-insight-status weather-insight-status--${airQualityInsight.tone}">${airQualityPresentation.text}</p>
+        <p class="weather-insight-description">${buildAirQualityInsightCopy(displayAirQualityIndex, airQualityPresentation.text, pollutant, pollutantValue, pollutantUnit)}</p>
       </div>
     </article>
   `;
@@ -409,6 +718,457 @@ function buildPrecipitationInsightCopy(precipitationNext24h, label) {
   }
 
   return `${label} con accumulo stimato di ${formatMillimeters(precipitationNext24h)} mm nelle prossime 24 ore.`;
+}
+
+function renderWindCompass(windDirection) {
+  const direction = getWindDirectionLabel(windDirection);
+  const normalizedDirection = windDirection === null ? 0 : ((windDirection % 360) + 360) % 360;
+  const flowDirection = (normalizedDirection + 180) % 360;
+  const ariaLabel = direction && windDirection !== null
+    ? `Vento da ${direction.label} a ${Math.round(windDirection)} gradi`
+    : "Direzione del vento non disponibile";
+
+  return `
+    <div class="weather-insight-compass" role="img" aria-label="${ariaLabel}">
+      <span class="weather-insight-compass-letter weather-insight-compass-letter--north">N</span>
+      <span class="weather-insight-compass-letter weather-insight-compass-letter--east">E</span>
+      <span class="weather-insight-compass-letter weather-insight-compass-letter--south">S</span>
+      <span class="weather-insight-compass-letter weather-insight-compass-letter--west">O</span>
+      <span class="weather-insight-compass-ring"></span>
+      <span class="weather-insight-compass-arrow" style="transform: translate(-50%, -50%) rotate(${flowDirection}deg);"></span>
+      <span class="weather-insight-compass-center"></span>
+    </div>
+  `;
+}
+
+function getWindDirectionLabel(degrees) {
+  const numericDegrees = toNumericValue(degrees);
+
+  if (numericDegrees === null) {
+    return null;
+  }
+
+  const directions = [
+    { short: "N", label: "nord" },
+    { short: "NE", label: "nord-est" },
+    { short: "E", label: "est" },
+    { short: "SE", label: "sud-est" },
+    { short: "S", label: "sud" },
+    { short: "SO", label: "sud-ovest" },
+    { short: "O", label: "ovest" },
+    { short: "NO", label: "nord-ovest" },
+  ];
+  const normalizedDegrees = ((numericDegrees % 360) + 360) % 360;
+  return directions[Math.round(normalizedDegrees / 45) % directions.length];
+}
+
+function getWindInsight(windSpeed, windGust) {
+  if (windSpeed < 10 && windGust < 20) {
+    return { label: "Calmo", tone: "calm" };
+  }
+
+  if (windSpeed < 24 && windGust < 36) {
+    return { label: "Brezza leggera", tone: "breeze" };
+  }
+
+  if (windSpeed < 40 && windGust < 55) {
+    return { label: "Ventilato", tone: "windy" };
+  }
+
+  return { label: "Vento sostenuto", tone: "severe" };
+}
+
+function buildWindInsightCopy(windSpeed, windGust, direction) {
+  const directionText = direction ? `da ${direction.label}` : "con direzione variabile";
+
+  if (windGust - windSpeed >= 15) {
+    return `Flusso ${directionText}, media di ${formatSpeed(windSpeed)} e raffiche piu' nette fino a ${formatSpeed(windGust)}.`;
+  }
+
+  return `Vento ${directionText}, stabile attorno a ${formatSpeed(windSpeed)} con picchi che raggiungono ${formatSpeed(windGust)}.`;
+}
+
+function renderHumidityBars(humidity) {
+  const normalizedHumidity = Math.max(0, Math.min(100, humidity));
+  const scales = [0.76, 0.88, 1, 0.92, 0.84, 0.94, 0.8];
+  const activeBars = normalizedHumidity <= 0 ? 0 : Math.max(1, Math.round((normalizedHumidity / 100) * scales.length));
+
+  return scales
+    .map(
+      (scale, index) => `
+        <span class="weather-insight-humidity-bar${index < activeBars ? " is-active" : ""}" style="--humidity-bar-scale:${scale};"></span>
+      `,
+    )
+    .join("");
+}
+
+function getHumidityInsight(humidity) {
+  if (humidity < 35) {
+    return { label: "Aria secca", tone: "dry" };
+  }
+
+  if (humidity <= 65) {
+    return { label: "Valori nella norma", tone: "comfortable" };
+  }
+
+  if (humidity <= 80) {
+    return { label: "Umidita' elevata", tone: "humid" };
+  }
+
+  return { label: "Molto umido", tone: "humid" };
+}
+
+function buildHumidityInsightCopy(humidity, dewPoint, unit) {
+  const dewPointCopy = dewPoint === null ? "" : ` con punto di rugiada a ${formatDetailTemperature(dewPoint, unit)}`;
+
+  if (humidity < 35) {
+    return `Umidita' al ${Math.round(humidity)}%${dewPointCopy}. L'aria resta asciutta e favorisce una sensazione piu' leggera.`;
+  }
+
+  if (humidity <= 65) {
+    return `Umidita' relativa al ${Math.round(humidity)}%${dewPointCopy}. Valori equilibrati per gran parte della giornata.`;
+  }
+
+  return `Umidita' relativa al ${Math.round(humidity)}%${dewPointCopy}. L'aria puo' risultare piu' pesante soprattutto nelle ore meno ventilate.`;
+}
+
+function getPollenInsight(pollenIndex, hasPollenData) {
+  if (!hasPollenData) {
+    return { label: "Non disponibile", tone: "neutral", markerColor: "#d9deed" };
+  }
+
+  if (pollenIndex <= 25) {
+    return { label: "Basso", tone: "good", markerColor: "#79d948" };
+  }
+
+  if (pollenIndex <= 50) {
+    return { label: "Moderata", tone: "moderate", markerColor: "#f2cf51" };
+  }
+
+  if (pollenIndex <= 75) {
+    return { label: "Alta", tone: "poor", markerColor: "#f39e37" };
+  }
+
+  return { label: "Molto alta", tone: "very-poor", markerColor: "#e06f3b" };
+}
+
+function buildPollenInsightCopy(pollenLevel, primaryAllergy, hasPollenData) {
+  if (!hasPollenData) {
+    return "Il servizio pollinico non restituisce ancora un valore affidabile per questa localita'.";
+  }
+
+  const allergyCopy = primaryAllergy ? ` Allergene principale: ${primaryAllergy}.` : "";
+  return `Livello ${pollenLevel?.toLowerCase() || "stimato"} per la giornata corrente.${allergyCopy}`;
+}
+
+function getVisibilityInsight(visibility) {
+  if (visibility >= 10) {
+    return { label: "Eccellente", tone: "excellent" };
+  }
+
+  if (visibility >= 7) {
+    return { label: "Buona", tone: "good" };
+  }
+
+  if (visibility >= 4) {
+    return { label: "Ridotta", tone: "moderate" };
+  }
+
+  return { label: "Scarsa", tone: "poor" };
+}
+
+function buildVisibilityInsightCopy(visibility) {
+  if (visibility >= 10) {
+    return "Aria limpida e orizzonte ben leggibile per gran parte della giornata.";
+  }
+
+  if (visibility >= 7) {
+    return `Visibilita' attorno a ${formatWholeInsightNumber(visibility)} km, con condizioni generalmente buone all'aperto.`;
+  }
+
+  return `Visibilita' ridotta a circa ${formatWholeInsightNumber(visibility)} km, soprattutto nelle aree piu' umide o trafficate.`;
+}
+
+function renderVisibilityBars(visibility) {
+  const visibilityRatio = Math.max(0.35, Math.min(1, (visibility || 0) / 10));
+  const widths = [0.54, 0.66, 0.78, 0.9, 1];
+
+  return widths
+    .map(
+      (widthRatio, index) => `
+        <span class="weather-insight-visibility-bar" style="--visibility-bar-width:${widthRatio * visibilityRatio}; --visibility-bar-delay:${index};"></span>
+      `,
+    )
+    .join("");
+}
+
+function getPressureTrend(currentPressure, pressureTomorrow) {
+  const delta = pressureTomorrow === null ? 0 : pressureTomorrow - currentPressure;
+
+  if (delta >= 3) {
+    return { label: "In salita", tone: "rise" };
+  }
+
+  if (delta > 0) {
+    return { label: "Salita lenta", tone: "rise" };
+  }
+
+  if (delta <= -3) {
+    return { label: "In calo", tone: "drop" };
+  }
+
+  if (delta < 0) {
+    return { label: "Discesa lenta", tone: "drop" };
+  }
+
+  return { label: "Stabile", tone: "steady" };
+}
+
+function buildPressureInsightCopy(currentPressure, pressureTomorrow) {
+  if (pressureTomorrow === null) {
+    return `Pressione attuale di ${formatWholeInsightNumber(currentPressure)} hPa, senza una tendenza affidabile nelle prossime ore.`;
+  }
+
+  const delta = pressureTomorrow - currentPressure;
+  if (Math.abs(delta) < 1) {
+    return `Pressione quasi stabile tra ${formatWholeInsightNumber(currentPressure)} e ${formatWholeInsightNumber(pressureTomorrow)} hPa nel breve termine.`;
+  }
+
+  const directionText = delta > 0 ? "aumento" : "calo";
+  return `Previsto un ${directionText} graduale di circa ${formatWholeInsightNumber(Math.abs(delta))} hPa entro il prossimo aggiornamento giornaliero.`;
+}
+
+function renderPressureTrendGraphic(currentPressure, pressureTomorrow) {
+  const values = buildPressureSeries(currentPressure, pressureTomorrow);
+  const plotPoints = buildMetricPlotPoints(values, {
+    width: 320,
+    height: 92,
+    padding: { top: 14, right: 18, bottom: 10, left: 8 },
+    minRange: 3,
+  });
+  const linePath = buildSmoothPath(plotPoints);
+  const highlightPoint = plotPoints[Math.min(2, plotPoints.length - 1)] || plotPoints.at(-1);
+
+  if (!plotPoints.length || !highlightPoint) {
+    return "";
+  }
+
+  return `
+    <svg class="weather-insight-pressure-svg" viewBox="0 0 320 92" role="img" aria-label="Tendenza della pressione atmosferica">
+      <path class="weather-insight-pressure-line" d="${linePath}" />
+      <circle class="weather-insight-pressure-point" cx="${highlightPoint.x}" cy="${highlightPoint.y}" r="10" />
+    </svg>
+  `;
+}
+
+function buildPressureSeries(currentPressure, pressureTomorrow) {
+  const targetPressure = pressureTomorrow ?? currentPressure;
+  const delta = targetPressure - currentPressure;
+
+  return [
+    currentPressure - delta * 0.28,
+    currentPressure - delta * 0.12,
+    currentPressure,
+    currentPressure + delta * 0.42,
+    targetPressure,
+  ];
+}
+
+function buildMetricPlotPoints(values, { width, height, padding, minRange = 4 }) {
+  const numericValues = values.map((value) => toNumericValue(value)).filter((value) => value !== null);
+
+  if (!numericValues.length) {
+    return [];
+  }
+
+  const plotWidth = width - padding.left - padding.right;
+  const plotHeight = height - padding.top - padding.bottom;
+  const minValue = Math.min(...numericValues);
+  const maxValue = Math.max(...numericValues);
+  const range = Math.max(maxValue - minValue, minRange);
+  const lowerBound = minValue - (range - (maxValue - minValue || 0)) / 2;
+  const xStep = numericValues.length > 1 ? plotWidth / (numericValues.length - 1) : 0;
+
+  return numericValues.map((value, index) => ({
+    x: padding.left + xStep * index,
+    y: height - padding.bottom - ((value - lowerBound) / range) * plotHeight,
+  }));
+}
+
+function getCurrentTimeLabel() {
+  return new Date().toLocaleTimeString("it-IT", {
+    hour: "2-digit",
+    minute: "2-digit",
+  });
+}
+
+function renderMoonGraphic(progress) {
+  const clampedProgress = progress === null ? 0.54 : Math.max(0.05, Math.min(0.95, progress));
+  const startPoint = { x: 28, y: 96 };
+  const controlPoint = { x: 92, y: 16 };
+  const endPoint = { x: 156, y: 96 };
+  const moonPoint = getQuadraticPoint(startPoint, controlPoint, endPoint, clampedProgress);
+
+  return `
+    <svg class="weather-insight-moon-svg" viewBox="0 0 184 122" role="img" aria-label="Percorso della luna nel cielo">
+      <path class="weather-insight-moon-shadow-path" d="M 18 112 Q 92 54 166 112" />
+      <line class="weather-insight-moon-horizon" x1="28" y1="68" x2="156" y2="68" />
+      <circle class="weather-insight-moon-horizon-point" cx="56" cy="68" r="6.5" />
+      <circle class="weather-insight-moon-horizon-point" cx="134" cy="68" r="6.5" />
+      <path class="weather-insight-moon-arc" d="M 56 68 Q 92 14 134 68" />
+      <g transform="translate(${moonPoint.x} ${moonPoint.y})">
+        <circle class="weather-insight-moon-body" r="12" />
+        <circle class="weather-insight-moon-cut" cx="5" cy="-4" r="8" />
+      </g>
+    </svg>
+  `;
+}
+
+function getQuadraticPoint(startPoint, controlPoint, endPoint, progress) {
+  const inverse = 1 - progress;
+
+  return {
+    x: inverse * inverse * startPoint.x + 2 * inverse * progress * controlPoint.x + progress * progress * endPoint.x,
+    y: inverse * inverse * startPoint.y + 2 * inverse * progress * controlPoint.y + progress * progress * endPoint.y,
+  };
+}
+
+function formatDurationMinutes(minutes) {
+  const numericMinutes = toNumericValue(minutes);
+
+  if (numericMinutes === null) {
+    return "Durata non disponibile";
+  }
+
+  const hours = Math.floor(numericMinutes / 60);
+  const remainingMinutes = Math.round(numericMinutes % 60);
+
+  return `${hours} ore ${remainingMinutes} minuti`;
+}
+
+function buildMoonInsightCopy(moonriseTime, moonsetTime, moonVisibilityMinutes, moonPhaseLabel) {
+  const durationCopy = moonVisibilityMinutes === null ? "durata non disponibile" : formatDurationMinutes(moonVisibilityMinutes).toLowerCase();
+
+  if (!moonriseTime || !moonsetTime) {
+    return `${moonPhaseLabel}. I prossimi orari lunari non sono ancora disponibili per questa localita'.`;
+  }
+
+  return `${moonPhaseLabel}, visibile per ${durationCopy}, con alba lunare alle ${moonriseTime} e tramonto alle ${moonsetTime}.`;
+}
+
+function getAirQualityInsight(airQuality) {
+  switch (airQuality) {
+    case "Buona":
+      return { tone: "excellent", markerColor: "#4fd672" };
+    case "Accettabile":
+      return { tone: "good", markerColor: "#8fd652" };
+    case "Moderata":
+      return { tone: "moderate", markerColor: "#efb834" };
+    case "Cattiva":
+      return { tone: "poor", markerColor: "#df762c" };
+    case "Molto cattiva":
+      return { tone: "very-poor", markerColor: "#c9532f" };
+    default:
+      return { tone: "neutral", markerColor: "#9fd2ff" };
+  }
+}
+
+function getFallbackAirQualityIndex(airQuality) {
+  return {
+    Buona: 25,
+    Accettabile: 75,
+    Moderata: 125,
+    Cattiva: 175,
+    "Molto cattiva": 250,
+  }[airQuality] ?? null;
+}
+
+function buildAirQualityInsightCopy(airQualityIndex, label, pollutant, pollutantValue, pollutantUnit) {
+  const pollutantCopy = pollutant && pollutantValue !== null
+    ? ` Inquinante primario: ${pollutant} ${formatGaugeNumber(pollutantValue)} ${pollutantUnit}.`
+    : "";
+  const guidance = airQualityIndex >= 151
+    ? " Meglio ridurre le attivita' intense all'aperto."
+    : airQualityIndex >= 101
+      ? " Le persone sensibili dovrebbero monitorare l'esposizione prolungata."
+      : " Le condizioni restano generalmente favorevoli per le attivita' esterne.";
+
+  return `Indice stimato ${Math.round(airQualityIndex)} (${label.toLowerCase()}).${pollutantCopy}${guidance}`;
+}
+
+function renderSegmentedGauge({ value, maxValue, segments, markerColor, ariaLabel }) {
+  const clampedValue = Math.max(0, Math.min(maxValue, value));
+  const radius = 46;
+  const centerX = 74;
+  const centerY = 74;
+  const trackPath = describeArc(centerX, centerY, radius, GAUGE_START_ANGLE, GAUGE_END_ANGLE);
+  const markerAngle = GAUGE_START_ANGLE + (clampedValue / maxValue) * GAUGE_SWEEP_ANGLE;
+  const markerPoint = polarToCartesian(centerX, centerY, radius, markerAngle);
+  let previousStop = 0;
+
+  const segmentMarkup = segments
+    .map((segment, index) => {
+      const segmentStart = previousStop;
+      previousStop = segment.stop;
+
+      const startAngle = GAUGE_START_ANGLE + (segmentStart / maxValue) * GAUGE_SWEEP_ANGLE + (index === 0 ? 0 : 3);
+      const endAngle = GAUGE_START_ANGLE + (segment.stop / maxValue) * GAUGE_SWEEP_ANGLE - (segment.stop >= maxValue ? 0 : 3);
+
+      if (endAngle <= startAngle) {
+        return "";
+      }
+
+      return `<path class="weather-insight-gauge-segment" stroke="${segment.color}" d="${describeArc(centerX, centerY, radius, startAngle, endAngle)}" />`;
+    })
+    .join("");
+
+  return `
+    <svg class="weather-insight-gauge" viewBox="0 0 148 148" role="img" aria-label="${ariaLabel}">
+      <path class="weather-insight-gauge-track" d="${trackPath}" />
+      ${segmentMarkup}
+      <circle class="weather-insight-gauge-marker" cx="${markerPoint.x}" cy="${markerPoint.y}" r="8.5" style="fill:${markerColor};" />
+    </svg>
+  `;
+}
+
+function describeArc(centerX, centerY, radius, startAngle, endAngle) {
+  const start = polarToCartesian(centerX, centerY, radius, endAngle);
+  const end = polarToCartesian(centerX, centerY, radius, startAngle);
+  const largeArcFlag = endAngle - startAngle <= 180 ? "0" : "1";
+
+  return `M ${start.x} ${start.y} A ${radius} ${radius} 0 ${largeArcFlag} 0 ${end.x} ${end.y}`;
+}
+
+function polarToCartesian(centerX, centerY, radius, angleInDegrees) {
+  const angleInRadians = ((angleInDegrees - 90) * Math.PI) / 180;
+
+  return {
+    x: centerX + radius * Math.cos(angleInRadians),
+    y: centerY + radius * Math.sin(angleInRadians),
+  };
+}
+
+function formatWholeInsightNumber(value) {
+  const numericValue = toNumericValue(value);
+
+  if (numericValue === null) {
+    return "--";
+  }
+
+  return Math.round(numericValue).toLocaleString("it-IT");
+}
+
+function formatGaugeNumber(value) {
+  const numericValue = toNumericValue(value);
+
+  if (numericValue === null) {
+    return "--";
+  }
+
+  return numericValue.toLocaleString("it-IT", {
+    minimumFractionDigits: Number.isInteger(numericValue) ? 0 : 1,
+    maximumFractionDigits: 1,
+  });
 }
 
 function renderTemperatureSparkline(points, unit) {

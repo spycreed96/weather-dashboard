@@ -252,7 +252,8 @@
 
 .weather-insights {
   margin-top: 20px;
-  max-width: 1000px;
+  max-width: 1320px;
+  width: 100%;
 }
 
 .weather-insights-header {
@@ -268,8 +269,8 @@
 .weather-insights-grid {
   align-items: stretch;
   display: grid;
-  gap: 18px;
-  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 20px;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
 }
 
 .weather-insight-card {
@@ -280,10 +281,10 @@
   border-radius: 24px;
   box-shadow: 0 18px 38px rgba(16, 21, 53, 0.28);
   color: #ffffff;
-  min-height: 280px;
+  min-height: 312px;
   min-width: 0;
   overflow: hidden;
-  padding: 22px;
+  padding: 24px;
   position: relative;
   width: 100%;
 }
@@ -304,6 +305,48 @@
   background:
     radial-gradient(circle at top center, rgba(84, 205, 255, 0.18), transparent 32%),
     linear-gradient(180deg, #2b355c 0%, #24304d 100%);
+}
+
+.weather-insight-card--wind {
+  background:
+    radial-gradient(circle at top left, rgba(108, 218, 165, 0.22), transparent 34%),
+    linear-gradient(180deg, #2d365c 0%, #24304c 100%);
+}
+
+.weather-insight-card--humidity {
+  background:
+    radial-gradient(circle at top center, rgba(126, 153, 255, 0.2), transparent 34%),
+    linear-gradient(180deg, #303865 0%, #27314f 100%);
+}
+
+.weather-insight-card--pollen {
+  background:
+    radial-gradient(circle at top center, rgba(177, 227, 58, 0.18), transparent 34%),
+    linear-gradient(180deg, #313960 0%, #273150 100%);
+}
+
+.weather-insight-card--visibility {
+  background:
+    radial-gradient(circle at top center, rgba(117, 230, 147, 0.18), transparent 34%),
+    linear-gradient(180deg, #2f375f 0%, #27314f 100%);
+}
+
+.weather-insight-card--pressure {
+  background:
+    radial-gradient(circle at top center, rgba(158, 203, 255, 0.2), transparent 34%),
+    linear-gradient(180deg, #2f365d 0%, #27304d 100%);
+}
+
+.weather-insight-card--moon {
+  background:
+    radial-gradient(circle at top center, rgba(255, 188, 72, 0.18), transparent 34%),
+    linear-gradient(180deg, #31385f 0%, #27304d 100%);
+}
+
+.weather-insight-card--aqi {
+  background:
+    radial-gradient(circle at top center, rgba(189, 207, 98, 0.16), transparent 34%),
+    linear-gradient(180deg, #2f375e 0%, #27314f 100%);
 }
 
 .weather-insight-card::before {
@@ -340,29 +383,6 @@
   text-align: right;
 }
 
-.weather-insight-current .temperature-inline {
-  align-items: flex-start;
-  gap: 0.06em;
-}
-
-.weather-insight-current .temperature-inline__value {
-  font-size: 3.4rem;
-  font-weight: 700;
-  letter-spacing: -0.05em;
-  line-height: 0.92;
-}
-
-.weather-insight-current .temperature-inline__degree {
-  font-size: 1.5rem;
-}
-
-.weather-insight-current .temperature-inline__unit {
-  align-self: flex-start;
-  font-size: 1.25rem;
-  line-height: 1;
-  margin-top: 0.4rem;
-}
-
 .weather-insight-meta {
   color: rgba(255, 255, 255, 0.72);
   font-size: 0.8rem;
@@ -375,6 +395,14 @@
 .weather-insight-meta strong {
   color: #ffffff;
   font-weight: 700;
+}
+
+.weather-insight-mini-label {
+  color: rgba(255, 255, 255, 0.78);
+  font-size: 0.82rem;
+  font-weight: 600;
+  line-height: 1.35;
+  margin: 0 0 10px;
 }
 
 .weather-insight-sparkline {
@@ -496,6 +524,439 @@
   margin-top: 0.55rem;
 }
 
+.weather-insight-wind-layout,
+.weather-insight-humidity-layout {
+  align-items: center;
+  display: grid;
+  gap: 18px;
+  margin-top: 14px;
+  position: relative;
+  z-index: 1;
+}
+
+.weather-insight-wind-layout {
+  grid-template-columns: 132px minmax(0, 1fr);
+}
+
+.weather-insight-humidity-layout {
+  grid-template-columns: 126px minmax(0, 1fr);
+}
+
+.weather-insight-compass {
+  height: 126px;
+  margin: 0 auto;
+  position: relative;
+  width: 126px;
+}
+
+.weather-insight-compass-ring {
+  border: 5px solid rgba(255, 255, 255, 0.12);
+  border-radius: 50%;
+  inset: 12px;
+  position: absolute;
+}
+
+.weather-insight-compass-arrow {
+  background: linear-gradient(90deg, #59d08c 0%, #62ddc0 100%);
+  clip-path: polygon(0 36%, 68% 36%, 68% 0, 100% 50%, 68% 100%, 68% 64%, 0 64%);
+  height: 16px;
+  left: 50%;
+  position: absolute;
+  top: 50%;
+  transform-origin: center;
+  width: 62px;
+}
+
+.weather-insight-compass-center {
+  background: #5ed38d;
+  border: 3px solid #202a45;
+  border-radius: 50%;
+  height: 16px;
+  left: 50%;
+  position: absolute;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  width: 16px;
+}
+
+.weather-insight-compass-letter {
+  color: rgba(255, 255, 255, 0.76);
+  font-size: 0.88rem;
+  font-weight: 700;
+  position: absolute;
+}
+
+.weather-insight-compass-letter--north {
+  left: 50%;
+  top: 0;
+  transform: translateX(-50%);
+}
+
+.weather-insight-compass-letter--east {
+  right: 0;
+  top: 50%;
+  transform: translateY(-50%);
+}
+
+.weather-insight-compass-letter--south {
+  bottom: 0;
+  left: 50%;
+  transform: translateX(-50%);
+}
+
+.weather-insight-compass-letter--west {
+  left: 0;
+  top: 50%;
+  transform: translateY(-50%);
+}
+
+.weather-insight-wind-metrics,
+.weather-insight-humidity-stats {
+  min-width: 0;
+}
+
+.weather-insight-wind-reading {
+  align-items: flex-start;
+  display: inline-flex;
+  gap: 6px;
+  line-height: 0.92;
+}
+
+.weather-insight-wind-reading strong,
+.weather-insight-humidity-value {
+  align-items: flex-start;
+  display: inline-flex;
+  gap: 4px;
+  font-size: 2.95rem;
+  font-weight: 700;
+  letter-spacing: -0.05em;
+  line-height: 0.9;
+}
+
+.weather-insight-wind-reading--secondary strong,
+.weather-insight-humidity-stat--secondary .weather-insight-humidity-value {
+  font-size: 2.25rem;
+}
+
+.weather-insight-wind-reading span {
+  color: rgba(255, 255, 255, 0.72);
+  font-size: 0.96rem;
+  font-weight: 700;
+  line-height: 1;
+  margin-top: 0.55rem;
+}
+
+.weather-insight-wind-reading-caption,
+.weather-insight-humidity-caption {
+  color: rgba(255, 255, 255, 0.72);
+  display: block;
+  font-size: 0.8rem;
+  line-height: 1.35;
+}
+
+.weather-insight-wind-reading-caption {
+  margin: 2px 0 10px;
+}
+
+.weather-insight-humidity-bars {
+  align-items: end;
+  display: grid;
+  gap: 8px;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+  height: 118px;
+  padding: 0 4px;
+}
+
+.weather-insight-humidity-bar {
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 999px;
+  height: calc(100% * var(--humidity-bar-scale, 1));
+  overflow: hidden;
+  position: relative;
+}
+
+.weather-insight-humidity-bar::after {
+  background: rgba(117, 143, 255, 0.2);
+  content: "";
+  inset: 52% 0 0;
+  position: absolute;
+}
+
+.weather-insight-humidity-bar.is-active::after {
+  background: linear-gradient(180deg, #7a98ff 0%, #6cc3ff 100%);
+}
+
+.weather-insight-humidity-stats {
+  display: grid;
+  gap: 14px;
+}
+
+.weather-insight-humidity-unit {
+  font-size: 0.45em;
+  line-height: 1;
+  margin-top: 0.42rem;
+}
+
+.weather-insight-humidity-number,
+.weather-insight-humidity-value--temperature .temperature-inline__number {
+  color: #ffffff;
+  font-size: inherit;
+  line-height: inherit;
+}
+
+.temperature-inline__number sup {
+  vertical-align: top;
+}
+
+.weather-insight-gauge-shell {
+  height: 148px;
+  margin: 12px auto 0;
+  position: relative;
+  width: 148px;
+  z-index: 1;
+}
+
+.weather-insight-gauge {
+  display: block;
+  height: 100%;
+  width: 100%;
+}
+
+.weather-insight-gauge-track,
+.weather-insight-gauge-segment {
+  fill: none;
+  stroke-linecap: round;
+  stroke-width: 9;
+}
+
+.weather-insight-gauge-track {
+  stroke: rgba(255, 255, 255, 0.12);
+}
+
+.weather-insight-gauge-center {
+  align-items: center;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  justify-content: center;
+  left: 50%;
+  position: absolute;
+  top: 50%;
+  transform: translate(-50%, -40%);
+}
+
+.weather-insight-gauge-center strong {
+  font-size: 3rem;
+  font-weight: 700;
+  letter-spacing: -0.05em;
+  line-height: 0.9;
+}
+
+.weather-insight-gauge-center--stacked {
+  gap: 8px;
+  transform: translate(-50%, -34%);
+  width: auto;
+}
+
+.weather-insight-gauge-center--stacked span {
+  color: rgba(255, 255, 255, 0.82);
+  font-size: 0.78rem;
+  line-height: 1.35;
+  text-align: center;
+}
+
+.weather-insight-pollen-summary {
+  align-items: center;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  margin-top: 10px;
+  min-height: 42px;
+  position: relative;
+  text-align: center;
+  z-index: 1;
+}
+
+.weather-insight-pollen-summary-label {
+  color: rgba(255, 255, 255, 0.78);
+  font-size: 0.8rem;
+  line-height: 1.2;
+}
+
+.weather-insight-pollen-summary-value {
+  color: #ffffff;
+  font-size: 1.1rem;
+  font-weight: 700;
+  line-height: 1.2;
+}
+
+.weather-insight-gauge-marker {
+  stroke: #ffffff;
+  stroke-width: 4;
+}
+
+.weather-insight-visibility-graphic {
+  display: grid;
+  gap: 10px;
+  justify-items: center;
+  margin: 8px 0 12px;
+  position: relative;
+  z-index: 1;
+}
+
+.weather-insight-visibility-bar {
+  background: linear-gradient(90deg, #39c26c 0%, #97d89f 100%);
+  border-radius: 999px;
+  display: block;
+  height: 10px;
+  opacity: calc(0.48 + var(--visibility-bar-delay, 0) * 0.1);
+  width: calc(160px * var(--visibility-bar-width, 1));
+}
+
+.weather-insight-visibility-value,
+.weather-insight-pressure-reading {
+  align-items: flex-start;
+  display: inline-flex;
+  gap: 6px;
+  line-height: 0.92;
+  position: relative;
+  z-index: 1;
+}
+
+.weather-insight-visibility-value {
+  justify-content: center;
+  width: 100%;
+}
+
+.weather-insight-visibility-value strong,
+.weather-insight-pressure-reading strong {
+  font-size: 3rem;
+  font-weight: 700;
+  letter-spacing: -0.05em;
+  line-height: 0.9;
+}
+
+.weather-insight-visibility-value span,
+.weather-insight-pressure-reading span {
+  color: rgba(255, 255, 255, 0.74);
+  font-size: 1rem;
+  font-weight: 700;
+  line-height: 1;
+  margin-top: 0.52rem;
+}
+
+.weather-insight-pressure-graphic {
+  margin: 6px 0 10px;
+  min-height: 92px;
+  position: relative;
+  z-index: 1;
+}
+
+.weather-insight-pressure-svg {
+  display: block;
+  height: auto;
+  width: 100%;
+}
+
+.weather-insight-pressure-line {
+  fill: none;
+  stroke: #9bc8ff;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-width: 8;
+}
+
+.weather-insight-pressure-point {
+  fill: #8fc2ff;
+  stroke: #ffffff;
+  stroke-width: 4;
+}
+
+.weather-insight-moon-graphic {
+  margin-top: 6px;
+  position: relative;
+  z-index: 1;
+}
+
+.weather-insight-moon-svg {
+  display: block;
+  height: auto;
+  width: 100%;
+}
+
+.weather-insight-moon-shadow-path {
+  fill: none;
+  stroke: rgba(255, 255, 255, 0.12);
+  stroke-linecap: round;
+  stroke-width: 8;
+}
+
+.weather-insight-moon-horizon {
+  stroke: rgba(255, 255, 255, 0.18);
+  stroke-width: 1;
+}
+
+.weather-insight-moon-horizon-point {
+  fill: rgba(255, 255, 255, 0.92);
+  stroke: rgba(255, 255, 255, 0.22);
+  stroke-width: 3;
+}
+
+.weather-insight-moon-arc {
+  fill: none;
+  stroke: #ffb73d;
+  stroke-linecap: round;
+  stroke-width: 8;
+}
+
+.weather-insight-moon-body {
+  fill: #ffc04a;
+  stroke: #ffffff;
+  stroke-width: 4;
+}
+
+.weather-insight-moon-cut {
+  fill: #fff8ec;
+}
+
+.weather-insight-moon-duration {
+  font-size: 1.2rem;
+  font-weight: 700;
+  margin: -2px 0 12px;
+  position: relative;
+  text-align: center;
+  z-index: 1;
+}
+
+.weather-insight-moon-times {
+  display: flex;
+  justify-content: space-between;
+  position: relative;
+  z-index: 1;
+}
+
+.weather-insight-moon-time-block {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.weather-insight-moon-time-block--end {
+  text-align: right;
+}
+
+.weather-insight-moon-time-block strong {
+  font-size: 1.35rem;
+  font-weight: 700;
+  line-height: 1;
+}
+
+.weather-insight-moon-time-block span {
+  color: rgba(255, 255, 255, 0.74);
+  font-size: 0.82rem;
+}
+
 .weather-insight-values {
   border-top: 1px solid rgba(255, 255, 255, 0.08);
   display: grid;
@@ -527,9 +988,7 @@
   font-weight: 700;
 }
 
-.weather-insight-value .temperature-inline__degree {
-  font-size: 0.7em;
-}
+
 
 .weather-insight-copy {
   border-top: 1px solid rgba(255, 255, 255, 0.08);
@@ -610,6 +1069,66 @@
   color: #ff9c72;
 }
 
+.weather-insight-status--calm {
+  color: #74e0b4;
+}
+
+.weather-insight-status--breeze {
+  color: #ffd166;
+}
+
+.weather-insight-status--windy {
+  color: #7bd8ff;
+}
+
+.weather-insight-status--comfortable {
+  color: #ffd166;
+}
+
+.weather-insight-status--humid {
+  color: #8fb0ff;
+}
+
+.weather-insight-status--low {
+  color: #ffe249;
+}
+
+.weather-insight-status--moderate {
+  color: #ffd166;
+}
+
+.weather-insight-status--high {
+  color: #ffb25c;
+}
+
+.weather-insight-status--very-high {
+  color: #ff8a5e;
+}
+
+.weather-insight-status--excellent {
+  color: #74e08a;
+}
+
+.weather-insight-status--good {
+  color: #a8d85e;
+}
+
+.weather-insight-status--poor {
+  color: #f1a24d;
+}
+
+.weather-insight-status--very-poor {
+  color: #e37856;
+}
+
+.weather-insight-status--severe {
+  color: #ff8a5e;
+}
+
+.weather-insight-status--lunar {
+  color: #ffc766;
+}
+
 .weather-insight-description {
   color: rgba(255, 255, 255, 0.84);
   font-size: 0.96rem;
@@ -635,6 +1154,22 @@
   line-height: 1.5;
   margin: 18px 0 0;
   max-width: 28ch;
+}
+
+@media (max-width: 640px) {
+  .weather-insight-wind-layout,
+  .weather-insight-humidity-layout {
+    grid-template-columns: 1fr;
+  }
+
+  .weather-insights-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .weather-insight-wind-metrics,
+  .weather-insight-humidity-stats {
+    width: 100%;
+  }
 }
 
 .forecast-panel-header h3 {
@@ -742,29 +1277,6 @@
 .forecast-chart-value {
   font-size: 0.95rem;
   font-weight: 700;
-}
-
-.temperature-inline {
-  align-items: center;
-  display: inline-flex;
-  font: inherit;
-  gap: 0.1em;
-  line-height: 1;
-  white-space: nowrap;
-}
-
-.temperature-inline__value {
-  line-height: 0.92;
-}
-
-.temperature-inline__degree {
-  font-size: 1.2em;
-}
-
-.temperature-inline__unit {
-  align-self: flex-start;
-  font-size: 1em;
-  line-height: 1;
 }
 
 .forecast-chart-canvas {
@@ -1056,6 +1568,7 @@
 .temperature-degree {
   font-size: 2rem;
   line-height: 1;
+  vertical-align: top;
 }
 
 .temperature-unit {
@@ -1319,9 +1832,7 @@
     padding: 18px;
   }
 
-  .weather-insight-current .temperature-inline__value {
-    font-size: 3rem;
-  }
+  
 
   .weather-insight-values {
     grid-template-columns: 1fr;

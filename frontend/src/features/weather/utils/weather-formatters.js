@@ -79,7 +79,7 @@ export function renderPrimaryTemperature(value, unit = "celsius") {
 export function renderInlineTemperature(value, unit = "celsius") {
   const presentation = getTemperaturePresentation(value, unit);
 
-  return `<span class="temperature-inline" aria-hidden="true"><span class="temperature-inline__value">${presentation.valueCharacter}</span>${presentation.showDegree ? '<sup class="temperature-inline__degree">°</sup>' : ""}<span class="temperature-inline__unit">${presentation.unitCharacter}</span></span>`;
+  return `<span class="temperature-inline" aria-hidden="true"><span class="temperature-inline__number">${presentation.valueCharacter}${presentation.showDegree ? "<sup>°</sup>" : ""}</span><span class="temperature-inline__unit">${presentation.unitCharacter}</span></span>`;
 }
 
 export function renderDetailInlineTemperature(value, unit = "celsius") {
@@ -88,7 +88,7 @@ export function renderDetailInlineTemperature(value, unit = "celsius") {
   const valueCharacter = roundedValue === null ? "--" : String(roundedValue);
   const unitCharacter = showDegree ? "" : getTemperatureUnitCharacter(unit);
 
-  return `<span class="temperature-inline" aria-hidden="true"><span class="temperature-inline__value">${valueCharacter}</span>${showDegree ? '<sup class="temperature-inline__degree">°</sup>' : ""}${unitCharacter ? `<span class="temperature-inline__unit">${unitCharacter}</span>` : ""}</span>`;
+  return `<span class="temperature-inline" aria-hidden="true"><span class="temperature-inline__number">${valueCharacter}${showDegree ? "<sup>°</sup>" : ""}</span>${unitCharacter ? `<span class="temperature-inline__unit">${unitCharacter}</span>` : ""}</span>`;
 }
 
 export function formatTemperature(value, unit = "celsius") {
