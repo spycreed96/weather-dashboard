@@ -1099,6 +1099,10 @@
   stroke-width: 8;
 }
 
+.weather-insight-pressure-line--tail {
+  stroke: rgba(255, 255, 255, 0.14);
+}
+
 .weather-insight-pressure-point {
   fill: #8fc2ff;
   stroke: #ffffff;

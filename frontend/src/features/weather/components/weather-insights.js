@@ -19,6 +19,7 @@ const INSIGHT_CHART_PADDING = {
   bottom: 12,
   left: 12,
 };
+const TEMPERATURE_TREND_WINDOW_POINTS = 3;
 const GAUGE_START_ANGLE = -140;
 const GAUGE_END_ANGLE = 140;
 const GAUGE_SWEEP_ANGLE = GAUGE_END_ANGLE - GAUGE_START_ANGLE;
@@ -647,23 +648,26 @@ function getTemperatureTrend(points, currentTemperature) {
   const temperatures = relevantPoints
     .map((point) => toNumericValue(point?.temperature))
     .filter((value) => value !== null);
-  const referenceValue = toNumericValue(currentTemperature) ?? temperatures[0] ?? 0;
-  const endValue = temperatures.at(-1) ?? referenceValue;
-  const span = temperatures.length ? Math.max(...temperatures) - Math.min(...temperatures) : 0;
+  const trendTemperatures = temperatures.slice(0, TEMPERATURE_TREND_WINDOW_POINTS);
+  const referenceValue = toNumericValue(currentTemperature) ?? trendTemperatures[0] ?? 0;
+  const endValue = trendTemperatures.at(-1) ?? referenceValue;
+  const span = trendTemperatures.length ? Math.max(...trendTemperatures) - Math.min(...trendTemperatures) : 0;
+  const risingMoves = trendTemperatures.some((value, index) => index > 0 && value > trendTemperatures[index - 1]);
+  const fallingMoves = trendTemperatures.some((value, index) => index > 0 && value < trendTemperatures[index - 1]);
 
-  if (span <= 3) {
-    return { label: "Costante", tone: "steady" };
-  }
-
-  if (endValue >= referenceValue + 3) {
+  if (endValue >= referenceValue + 2) {
     return { label: "In rialzo", tone: "rise" };
   }
 
-  if (endValue <= referenceValue - 3) {
+  if (endValue <= referenceValue - 2) {
     return { label: "In calo", tone: "drop" };
   }
 
-  return { label: "Variabile", tone: "mixed" };
+  if (risingMoves && fallingMoves && span >= 2) {
+    return { label: "Variabile", tone: "mixed" };
+  }
+
+  return { label: "Costante", tone: "steady" };
 }
 
 function buildTemperatureInsightCopy(points, currentTemperature, unit, trendLabel) {
@@ -676,17 +680,21 @@ function buildTemperatureInsightCopy(points, currentTemperature, unit, trendLabe
     Variabile: `Oscilla attorno al valore corrente di ${currentValueLabel}.`,
   }[trendLabel] || `Valore corrente di ${currentValueLabel}.`;
 
+  const maximumPoint = getMaximumTemperaturePoint(points);
+  const maximumCopy = maximumPoint?.time_label
+    ? ` Massimo previsto di ${formatDetailTemperature(maximumPoint.temperature, unit)} alle ${maximumPoint.time_label}.`
+    : "";
   const nightLowPoint = getNighttimeLowPoint(points);
   if (nightLowPoint) {
-    return `${lead} Durante la notte minimo di ${formatDetailTemperature(nightLowPoint.temperature, unit)} alle ${nightLowPoint.time_label}.`;
+    return `${lead}${maximumCopy} Durante la notte minimo di ${formatDetailTemperature(nightLowPoint.temperature, unit)} alle ${nightLowPoint.time_label}.`;
   }
 
   const minimumPoint = getMinimumTemperaturePoint(points);
   if (minimumPoint?.time_label) {
-    return `${lead} Minimo previsto di ${formatDetailTemperature(minimumPoint.temperature, unit)} alle ${minimumPoint.time_label}.`;
+    return `${lead}${maximumCopy} Minimo previsto di ${formatDetailTemperature(minimumPoint.temperature, unit)} alle ${minimumPoint.time_label}.`;
   }
 
-  return lead;
+  return `${lead}${maximumCopy}`;
 }
 
 function getNighttimeLowPoint(points) {
@@ -708,6 +716,18 @@ function getMinimumTemperaturePoint(points) {
 
   return validPoints.reduce((lowestPoint, point) =>
     toNumericValue(point.temperature) < toNumericValue(lowestPoint.temperature) ? point : lowestPoint,
+  );
+}
+
+function getMaximumTemperaturePoint(points) {
+  const validPoints = points.filter((point) => toNumericValue(point?.temperature) !== null);
+
+  if (!validPoints.length) {
+    return null;
+  }
+
+  return validPoints.reduce((highestPoint, point) =>
+    toNumericValue(point.temperature) > toNumericValue(highestPoint.temperature) ? point : highestPoint,
   );
 }
 
@@ -1113,16 +1133,19 @@ function renderPressureTrendGraphic(currentPressure, pressureTomorrow) {
     padding: { top: 14, right: 18, bottom: 10, left: 8 },
     minRange: 3,
   });
-  const linePath = buildSmoothPath(plotPoints);
-  const highlightPoint = plotPoints[Math.min(2, plotPoints.length - 1)] || plotPoints.at(-1);
-
-  if (!plotPoints.length || !highlightPoint) {
+  if (!plotPoints.length) {
     return "";
   }
 
+  const safeHighlightIndex = Math.min(2, plotPoints.length - 1);
+  const highlightPoint = plotPoints[safeHighlightIndex] || plotPoints.at(-1);
+  const leadingPath = buildSmoothPath(plotPoints.slice(0, safeHighlightIndex + 1));
+  const trailingPath = safeHighlightIndex < plotPoints.length - 1 ? buildSmoothPath(plotPoints.slice(safeHighlightIndex)) : "";
+
   return `
     <svg class="weather-insight-pressure-svg" viewBox="0 0 320 92" role="img" aria-label="Tendenza della pressione atmosferica">
-      <path class="weather-insight-pressure-line" d="${linePath}" />
+      ${trailingPath ? `<path class="weather-insight-pressure-line weather-insight-pressure-line--tail" d="${trailingPath}" />` : ""}
+      <path class="weather-insight-pressure-line" d="${leadingPath}" />
       <circle class="weather-insight-pressure-point" cx="${highlightPoint.x}" cy="${highlightPoint.y}" r="10" />
     </svg>
   `;
@@ -1242,6 +1265,12 @@ function renderSunGraphic(progress) {
   const geometry = getSkyTrackGeometry();
   const skyGraphicState = getSkyGraphicState(progress);
   const sunPoint = getSkyGraphicPoint(skyGraphicState.segment, skyGraphicState.segmentProgress, geometry);
+  const completedArcPath = skyGraphicState.isOutsideWindow
+    ? geometry.fullArcPath
+    : getQuadraticSegmentPath(geometry.arcStartPoint, geometry.arcControlPoint, geometry.arcEndPoint, 0, skyGraphicState.segmentProgress);
+  const remainingArcPath = skyGraphicState.isOutsideWindow
+    ? ""
+    : getQuadraticSegmentPath(geometry.arcStartPoint, geometry.arcControlPoint, geometry.arcEndPoint, skyGraphicState.segmentProgress, 1);
   const sunBodyClass = skyGraphicState.isOutsideWindow
     ? "weather-insight-sun-body weather-insight-sun-body--inactive"
     : "weather-insight-sun-body";
@@ -1268,11 +1297,12 @@ function renderSunGraphic(progress) {
       </defs>
 
       <path class="weather-insight-sun-shadow-path" d="M ${geometry.leftTrackStart.x} ${geometry.leftTrackStart.y} Q ${geometry.leftTrackControl.x} ${geometry.leftTrackControl.y} ${geometry.arcStartPoint.x} ${geometry.arcStartPoint.y}" />
+      ${remainingArcPath ? `<path class="weather-insight-sun-shadow-path" d="${remainingArcPath}" />` : ""}
       <path class="weather-insight-sun-shadow-path" d="M ${geometry.arcEndPoint.x} ${geometry.arcEndPoint.y} Q ${geometry.rightTrackControl.x} ${geometry.rightTrackControl.y} ${geometry.rightTrackEnd.x} ${geometry.rightTrackEnd.y}" />
       <line class="weather-insight-sun-horizon" x1="24" y1="68" x2="160" y2="68" />
       <circle class="weather-insight-sun-horizon-point" cx="${geometry.arcStartPoint.x}" cy="${geometry.arcStartPoint.y}" r="6.5" />
       <circle class="weather-insight-sun-horizon-point" cx="${geometry.arcEndPoint.x}" cy="${geometry.arcEndPoint.y}" r="6.5" />
-      <path class="weather-insight-sun-arc" d="${geometry.fullArcPath}" stroke="url(#weather-insight-sun-arc-gradient)" />
+      <path class="weather-insight-sun-arc" d="${completedArcPath}" stroke="url(#weather-insight-sun-arc-gradient)" />
       <g transform="translate(${sunPoint.x} ${sunPoint.y})">
         <circle class="weather-insight-sun-backdrop" r="14" />
         <circle class="${sunBodyClass}" r="10.8" />

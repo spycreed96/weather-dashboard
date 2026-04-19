@@ -37,7 +37,7 @@ export function renderForecastList() {
 }
 
 export function renderForecastItems(forecastDays, selectedDate = "", unit = "celsius") {
-  const visibleDays = forecastDays.slice(0, 8);
+  const visibleDays = forecastDays.slice(0, 11);
 
   if (!visibleDays.length) {
     return '<p class="forecast-empty">Previsioni giornaliere non disponibili.</p>';
