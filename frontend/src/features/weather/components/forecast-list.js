@@ -17,40 +17,6 @@ const CHART_PADDING = {
   left: 54,
 };
 
-export function renderForecastList() {
-  
-
-  return `
-    <section class="forecast-panel" aria-labelledby="forecast-panel-title">
-      <div class="forecast-panel-header">
-        <div>
-          <h3 id="forecast-panel-title">Panoramica</h3>
-          <p class="forecast-panel-copy">Seleziona un giorno dalla lista delle previsioni per aggiornare la curva della temperatura.</p>
-        </div>
-      </div>
-      <div id="forecast-chart" class="forecast-chart" aria-live="polite"></div>
-      <div class="forecast-carousel">
-        <button id="forecast-prev" class="forecast-nav-btn" type="button" aria-label="Scorri forecast a sinistra">&larr;</button>
-        <div id="daily-forecast-list" class="daily-forecast-list" aria-label="Previsioni giornaliere"></div>
-        <button id="forecast-next" class="forecast-nav-btn" type="button" aria-label="Scorri forecast a destra">&rarr;</button>
-      </div>
-    </section>
-  `;
-}
-
-export function renderFeatureTabs() {
-  return `
-    <div class="feature-tabs" role="tablist" aria-label="Pannello funzionalità meteo">
-      <button type="button" class="feature-tab is-active" data-feature="panoramica">Panoramica</button>
-      <button type="button" class="feature-tab" data-feature="precipitazioni">Precipitazioni</button>
-      <button type="button" class="feature-tab" data-feature="vento">Vento</button>
-      <button type="button" class="feature-tab" data-feature="qualita-aria">Qualità dell'aria</button>
-      <button type="button" class="feature-tab" data-feature="umidita">Umidità</button>
-      <button type="button" class="feature-tab" data-feature="nuvolosita">Nuvolosità</button>
-    </div>
-  `;
-}
-
 export function renderForecastItems(forecastDays, selectedDate = "", unit = "celsius") {
   const visibleDays = forecastDays.slice(0, 11);
 
