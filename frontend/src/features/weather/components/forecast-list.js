@@ -18,6 +18,8 @@ const CHART_PADDING = {
 };
 
 export function renderForecastList() {
+  
+
   return `
     <section class="forecast-panel" aria-labelledby="forecast-panel-title">
       <div class="forecast-panel-header">
@@ -112,14 +114,19 @@ export function renderForecastChart(day, unit = "celsius") {
   const lowerBound = Math.floor(minValue - paddedRange / 2);
   const upperBound = Math.ceil(maxValue + paddedRange / 2);
   const safeRange = Math.max(upperBound - lowerBound, 4);
-  const xStep = hourlyForecast.length > 1 ? plotWidth / (hourlyForecast.length - 1) : 0;
+  // Align SVG plot X coordinates with the overlay/grid extents (match horizontal grid x1/x2)
+  const OVERLAY_X1 = 28;
+  const OVERLAY_X2 = 732;
+  const overlayPlotWidth = OVERLAY_X2 - OVERLAY_X1;
+  const xStep = hourlyForecast.length > 1 ? overlayPlotWidth / (hourlyForecast.length - 1) : 0;
+
   const points = hourlyForecast.map((point, index) => {
     const value = chartValues[index];
     const normalized = (value - lowerBound) / safeRange;
 
     return {
       ...point,
-      x: CHART_PADDING.left + xStep * index,
+      x: OVERLAY_X1 + xStep * index,
       y: CHART_HEIGHT - CHART_PADDING.bottom - normalized * plotHeight,
       value,
     };
@@ -128,6 +135,50 @@ export function renderForecastChart(day, unit = "celsius") {
   const linePath = buildSmoothPath(points);
   const areaPath = buildAreaPath(points, CHART_HEIGHT - CHART_PADDING.bottom);
 
+  // Build timeline slots: 12 items, starting 2 hours before now, every 2 hours
+  const SLOT_COUNT = 12;
+  const now = new Date();
+  const firstSlotDate = new Date(now);
+  firstSlotDate.setMinutes(0, 0, 0);
+  firstSlotDate.setHours(firstSlotDate.getHours() - 2);
+
+  const timelineSlots = Array.from({ length: SLOT_COUNT }).map((_, idx) => {
+    const slotDate = new Date(firstSlotDate);
+    slotDate.setHours(firstSlotDate.getHours() + idx * 2);
+    const slotLabel = `${slotDate.getHours().toString().padStart(2, "0")}:00`;
+
+    let found = hourlyForecast.find((p) => p.time_label === slotLabel);
+    if (!found && hourlyForecast.length) {
+      found = hourlyForecast.reduce((best, p) => {
+        const pHour = Number(String(p.time_label).split(":")[0]);
+        const slotHour = slotDate.getHours();
+        const diff = Math.abs(pHour - slotHour);
+        if (!best) return p;
+        const bestHour = Number(String(best.time_label).split(":")[0]);
+        return Math.abs(bestHour - slotHour) <= diff ? best : p;
+      }, null);
+    }
+
+    if (!found) {
+      return {
+        time_label: slotLabel,
+        temperature: null,
+        icon: "",
+        description: "",
+        is_now: slotLabel === `${now.getHours().toString().padStart(2, "0")}:00`,
+      };
+    }
+
+    return {
+      ...found,
+      time_label: slotLabel,
+      is_now: found.is_now || slotLabel === `${now.getHours().toString().padStart(2, "0")}:00`,
+    };
+  });
+
+  // Note: vertical lines will be rendered as an overlay grid to align with the timeline slots
+
+  const verticalOverlay = timelineSlots.map(() => `<div class="forecast-chart-vertical-cell"></div>`).join("");
   return `
     <div class="forecast-chart-shell">
       <div class="forecast-chart-copy-row">
@@ -138,23 +189,24 @@ export function renderForecastChart(day, unit = "celsius") {
         <p class="forecast-chart-description">Asse X: tempo. Asse Y: temperatura.</p>
       </div>
 
-      <div class="forecast-chart-timeline" style="--forecast-point-count: ${hourlyForecast.length};">
-        ${hourlyForecast
-          .map((point) => {
-            const iconUrl = getWeatherIconUrl(point.icon, "2x");
+      <div class="forecast-chart-plot" style="--forecast-point-count: 12;">
+        <div class="forecast-chart-timeline">
+          ${timelineSlots
+            .map((point) => {
+              const iconUrl = getWeatherIconUrl(point.icon, "2x");
 
-            return `
-              <div class="forecast-chart-slot">
-                <span class="forecast-chart-time${point.is_now ? " forecast-chart-time--now" : ""}">${point.time_label}</span>
-                ${iconUrl ? `<img class="forecast-chart-icon" src="${iconUrl}" alt="${point.description}" />` : '<span class="forecast-chart-icon-placeholder">-</span>'}
-                <span class="forecast-chart-value" aria-label="${formatTemperature(point.temperature, unit)}">${renderDetailInlineTemperature(point.temperature, unit)}</span>
-              </div>
-            `;
-          })
-          .join("")}
-      </div>
+              return `
+                <div class="forecast-chart-slot">
+                  <span class="forecast-chart-time${point.is_now ? " forecast-chart-time--now" : ""}">${point.time_label}</span>
+                  ${iconUrl ? `<img class="forecast-chart-icon" src="${iconUrl}" alt="${point.description}" />` : '<span class="forecast-chart-icon-placeholder">-</span>'}
+                  <span class="forecast-chart-value" aria-label="${formatTemperature(point.temperature, unit)}">${renderDetailInlineTemperature(point.temperature, unit)}</span>
+                </div>
+              `;
+            })
+            .join("")}
+        </div>
 
-      <div class="forecast-chart-canvas">
+        <div class="forecast-chart-canvas">
           <svg class="forecast-chart-svg" viewBox="0 0 ${CHART_WIDTH} ${CHART_HEIGHT}" role="img" aria-label="Andamento della temperatura per ${formatForecastHeading(day)}">
           <defs>
             <linearGradient id="forecast-area-gradient" x1="0" x2="0" y1="0" y2="1">
@@ -168,8 +220,8 @@ export function renderForecastChart(day, unit = "celsius") {
               const y = CHART_HEIGHT - CHART_PADDING.bottom - ((tick - lowerBound) / safeRange) * plotHeight;
 
               return `
-                <line class="forecast-chart-grid" x1="${CHART_PADDING.left}" y1="${y}" x2="${CHART_WIDTH - CHART_PADDING.right}" y2="${y}" />
-                <text class="forecast-chart-axis-label" x="${CHART_PADDING.left - 14}" y="${y + 4}" text-anchor="end">${formatAxisTemperature(tick, unit)}</text>
+                <line class="forecast-chart-grid" x1="28" y1="${y}" x2="732" y2="${y}" />
+                <text class="forecast-chart-axis-label" x="23" y="${y + 4}" text-anchor="end">${formatAxisTemperature(tick, unit)}</text>
               `;
             })
             .join("")}
@@ -193,13 +245,19 @@ export function renderForecastChart(day, unit = "celsius") {
               `,
             )
             .join("")}
-        </svg>
-        <div class="forecast-chart-tooltip" aria-hidden="true">
+          </svg>
+
+          <div class="forecast-chart-verticals" aria-hidden="true">
+            ${verticalOverlay}
+          </div>
+
+          <div class="forecast-chart-tooltip" aria-hidden="true">
           <div class="forecast-chart-tooltip-inner">
             <div class="forecast-chart-tooltip-time">00:00</div>
             <img class="forecast-chart-tooltip-icon" src="" alt="" />
             <div class="forecast-chart-tooltip-temp">--°</div>
           </div>
+        </div>
         </div>
       </div>
     </div>
