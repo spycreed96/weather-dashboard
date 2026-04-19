@@ -1,6 +1,6 @@
 import { qs, qsa } from "../../shared/utils/dom.js";
 import { formatCurrentTime } from "../../shared/utils/format-date.js";
-import { renderForecastChart, renderForecastItems, renderForecastList } from "./components/forecast-list.js";
+import { renderForecastChart, renderForecastItems, renderForecastList, renderFeatureTabs } from "./components/forecast-list.js";
 import { renderSearchForm } from "./components/search-form.js";
 import { renderWeatherInsightsSection, renderWeatherInsightCards } from "./components/weather-insights.js";
 import { createHistoryItem } from "./components/weather-details.js";
@@ -30,6 +30,7 @@ export function mountWeatherFeature(root) {
       <div class="dashboard-content">
         <p id="current-location" class="current-location">--</p>
         ${renderWeatherCard()}
+        ${renderFeatureTabs()}
         ${renderForecastList()}
         ${renderWeatherInsightsSection()}
       </div>
@@ -770,6 +771,117 @@ function renderSelectedForecastChart(elements, state) {
 
   const selectedDay = state.forecastData.find((day) => day.date === state.selectedForecastDate) || null;
   elements.forecastChart.innerHTML = renderForecastChart(selectedDay, state.temperatureUnit);
+  bindForecastChartInteractions(elements, state);
+}
+
+function bindForecastChartInteractions(elements, state) {
+  if (!elements?.forecastChart) return;
+
+  const container = elements.forecastChart;
+  const canvas = container.querySelector(".forecast-chart-canvas");
+  const svg = container.querySelector("svg.forecast-chart-svg");
+  const tooltip = container.querySelector(".forecast-chart-tooltip");
+
+  if (!canvas || !svg || !tooltip) return;
+
+  const circles = Array.from(svg.querySelectorAll(".forecast-chart-point"));
+  if (!circles.length) return;
+
+  let rafId = null;
+
+  function getSvgCoordsFromClientXY(clientX, clientY) {
+    const svgRect = svg.getBoundingClientRect();
+    const viewBox = svg.viewBox.baseVal;
+    const x = (clientX - svgRect.left) * (viewBox.width / svgRect.width);
+    const y = (clientY - svgRect.top) * (viewBox.height / svgRect.height);
+    return { x, y, svgRect };
+  }
+
+  function handleMove(evt) {
+    if (rafId) cancelAnimationFrame(rafId);
+    rafId = requestAnimationFrame(() => {
+      const { x, y, svgRect } = getSvgCoordsFromClientXY(evt.clientX, evt.clientY);
+
+      let nearest = null;
+      let minDist = Infinity;
+
+      circles.forEach((c) => {
+        const cx = parseFloat(c.getAttribute("cx") || "0");
+        const d = Math.abs(cx - x);
+        if (d < minDist) {
+          minDist = d;
+          nearest = c;
+        }
+      });
+
+      if (!nearest) return;
+
+      const cx = parseFloat(nearest.getAttribute("cx") || "0");
+      const cy = parseFloat(nearest.getAttribute("cy") || "0");
+      const canvasRect = canvas.getBoundingClientRect();
+
+      const px = (cx / svg.viewBox.baseVal.width) * svgRect.width;
+      const py = (cy / svg.viewBox.baseVal.height) * svgRect.height;
+
+      // coordinates relative to container (pixels)
+      const left = svgRect.left - canvasRect.left + px;
+      const top = svgRect.top - canvasRect.top + py;
+
+      const timeEl = tooltip.querySelector('.forecast-chart-tooltip-time');
+      const iconEl = tooltip.querySelector('.forecast-chart-tooltip-icon');
+      const tempEl = tooltip.querySelector('.forecast-chart-tooltip-temp');
+
+      if (timeEl) timeEl.textContent = nearest.dataset.time || "";
+      if (iconEl) {
+        if (nearest.dataset.icon) {
+          iconEl.src = nearest.dataset.icon;
+          iconEl.style.display = "block";
+        } else {
+          iconEl.style.display = "none";
+        }
+      }
+      if (tempEl) tempEl.textContent = nearest.dataset.temp ? formatTemperature(Number(nearest.dataset.temp), state.temperatureUnit) : "";
+
+      // set provisional position (centered on point)
+      tooltip.style.left = `${left}px`;
+      tooltip.style.top = `${top}px`;
+
+      // make visible but hidden for measurement
+      tooltip.style.visibility = "hidden";
+      tooltip.classList.add("is-visible");
+
+      // measure and clamp to container bounds to avoid scrollbars
+      const ttRect = tooltip.getBoundingClientRect();
+      const containerRect = canvas.getBoundingClientRect();
+      const halfWidth = ttRect.width / 2;
+      const margin = 8; // small padding from edges
+
+      // left is center x within container
+      const maxCenterX = containerRect.width - halfWidth - margin;
+      const minCenterX = halfWidth + margin;
+      const clampedCenterX = Math.max(minCenterX, Math.min(left, maxCenterX));
+      tooltip.style.left = `${clampedCenterX}px`;
+
+      // choose above or below depending on space
+      const needsBelow = top - ttRect.height - margin < 0;
+      tooltip.style.transform = needsBelow ? "translate(-50%, 8px)" : "translate(-50%, -120%)";
+
+      // finally show tooltip
+      tooltip.style.visibility = "";
+
+      circles.forEach((c) => c.classList.toggle("is-hover", c === nearest));
+    });
+  }
+
+  function handleLeave() {
+    if (rafId) cancelAnimationFrame(rafId);
+    tooltip.classList.remove("is-visible");
+    circles.forEach((c) => c.classList.remove("is-hover"));
+  }
+
+  svg.addEventListener("mousemove", handleMove);
+  svg.addEventListener("mouseleave", handleLeave);
+  canvas.addEventListener("scroll", handleLeave);
 }
 
 function renderWeatherInsights(elements, state) {

@@ -36,6 +36,19 @@ export function renderForecastList() {
   `;
 }
 
+export function renderFeatureTabs() {
+  return `
+    <div class="feature-tabs" role="tablist" aria-label="Pannello funzionalità meteo">
+      <button type="button" class="feature-tab is-active" data-feature="panoramica">Panoramica</button>
+      <button type="button" class="feature-tab" data-feature="precipitazioni">Precipitazioni</button>
+      <button type="button" class="feature-tab" data-feature="vento">Vento</button>
+      <button type="button" class="feature-tab" data-feature="qualita-aria">Qualità dell'aria</button>
+      <button type="button" class="feature-tab" data-feature="umidita">Umidità</button>
+      <button type="button" class="feature-tab" data-feature="nuvolosita">Nuvolosità</button>
+    </div>
+  `;
+}
+
 export function renderForecastItems(forecastDays, selectedDate = "", unit = "celsius") {
   const visibleDays = forecastDays.slice(0, 11);
 
@@ -142,7 +155,7 @@ export function renderForecastChart(day, unit = "celsius") {
       </div>
 
       <div class="forecast-chart-canvas">
-        <svg class="forecast-chart-svg" viewBox="0 0 ${CHART_WIDTH} ${CHART_HEIGHT}" role="img" aria-label="Andamento della temperatura per ${formatForecastHeading(day)}">
+          <svg class="forecast-chart-svg" viewBox="0 0 ${CHART_WIDTH} ${CHART_HEIGHT}" role="img" aria-label="Andamento della temperatura per ${formatForecastHeading(day)}">
           <defs>
             <linearGradient id="forecast-area-gradient" x1="0" x2="0" y1="0" y2="1">
               <stop offset="0%" stop-color="rgba(255, 136, 98, 0.45)" />
@@ -166,12 +179,28 @@ export function renderForecastChart(day, unit = "celsius") {
 
           ${points
             .map(
-              (point) => `
-                <circle class="forecast-chart-point${point.is_now ? " forecast-chart-point--now" : ""}" cx="${point.x}" cy="${point.y}" r="${point.is_now ? 5.5 : 4.5}" />
+              (point, index) => `
+                <circle
+                  class="forecast-chart-point${point.is_now ? " forecast-chart-point--now" : ""}"
+                  cx="${point.x}"
+                  cy="${point.y}"
+                  r="${point.is_now ? 5.5 : 4.5}"
+                  data-index="${index}"
+                  data-time="${point.time_label}"
+                  data-temp="${point.temperature}"
+                  data-icon="${getWeatherIconUrl(point.icon, "2x") || ""}"
+                />
               `,
             )
             .join("")}
         </svg>
+        <div class="forecast-chart-tooltip" aria-hidden="true">
+          <div class="forecast-chart-tooltip-inner">
+            <div class="forecast-chart-tooltip-time">00:00</div>
+            <img class="forecast-chart-tooltip-icon" src="" alt="" />
+            <div class="forecast-chart-tooltip-temp">--°</div>
+          </div>
+        </div>
       </div>
     </div>
   `;

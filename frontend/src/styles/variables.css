@@ -6,6 +6,8 @@
   --muted: rgba(0, 0, 0, 0.6);
   --shadow: 0 22px 60px rgba(0, 0, 0, 0.18);
   --transition: all 0.3s ease;
+  --accent: #ffc857;
+  --accent-text: #1a1a1a;
 }
 
 .dark {
@@ -14,4 +16,6 @@
   --card-border: rgba(255, 255, 255, 0.22);
   --text: #ffffff;
   --muted: rgba(255, 255, 255, 0.75);
+  --accent: #ffc857;
+  --accent-text: #1a1a1a;
 }

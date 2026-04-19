@@ -1565,6 +1565,44 @@
   margin: 6px 0 0;
 }
 
+/* Feature tabs (graphic only) placed between weather card and forecast panel */
+.feature-tabs {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  margin: 18px 0;
+  flex-wrap: wrap;
+}
+
+.feature-tab {
+  appearance: none;
+  background: var(--card);
+  border: 1px solid var(--card-border);
+  border-radius: 999px;
+  color: var(--text);
+  padding: 10px 16px;
+  font-weight: 700;
+  font-size: 0.95rem;
+  cursor: pointer;
+  transition: var(--transition);
+}
+
+.feature-tab:hover {
+  transform: translateY(-2px);
+}
+
+.feature-tab.is-active {
+  background: var(--accent);
+  color: var(--accent-text);
+  border-color: transparent;
+  box-shadow: 0 12px 28px rgba(0, 0, 0, 0.18);
+}
+
+.feature-tab:focus-visible {
+  outline: 3px solid rgba(255, 200, 80, 0.22);
+  outline-offset: 2px;
+}
+
 .forecast-chart {
   background:
     radial-gradient(circle at top, rgba(255, 171, 125, 0.18), transparent 48%),
@@ -1663,6 +1701,7 @@
 
 .forecast-chart-canvas {
   overflow-x: auto;
+  position: relative;
 }
 
 .forecast-chart-svg {
@@ -1708,6 +1747,55 @@
   fill: #ffffff;
   stroke: #ff986d;
   stroke-width: 3;
+}
+
+.forecast-chart-point.is-hover {
+  stroke: #ffffff;
+  stroke-width: 5;
+}
+
+.forecast-chart-tooltip {
+  position: absolute;
+  pointer-events: none;
+  transform: translate(-50%, -120%);
+  display: none;
+  z-index: 40;
+}
+
+.forecast-chart-tooltip.is-visible {
+  display: block;
+}
+
+.forecast-chart-tooltip-inner {
+  align-items: center;
+  background: var(--card);
+  border: 1px solid var(--card-border);
+  border-radius: 12px;
+  color: var(--text);
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 8px 12px;
+  font-size: 0.95rem;
+  text-align: center;
+  white-space: normal;
+  box-shadow: var(--shadow);
+}
+
+.forecast-chart-tooltip-icon {
+  width: 28px;
+  height: 28px;
+  display: block;
+  border-radius: 6px;
+}
+
+.forecast-chart-tooltip-time {
+  color: var(--muted);
+  font-size: 0.85rem;
+}
+
+.forecast-chart-tooltip-temp {
+  font-weight: 700;
 }
 
 .forecast-chart-point--now {
