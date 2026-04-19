@@ -21,6 +21,7 @@ import {
 
 const HISTORY_SCROLL_STEP = 200;
 const FORECAST_SCROLL_STEP = 260;
+const REFRESH_TOAST_HIDE_DELAY = 2800;
 
 export function mountWeatherFeature(root) {
   root.innerHTML = `
@@ -43,6 +44,8 @@ export function mountWeatherFeature(root) {
     currentWeather: null,
     debounceTimer: null,
     forecastData: [],
+    isRefreshPending: false,
+    refreshToastTimer: null,
     selectedForecastDate: null,
     temperatureUnit: "celsius",
   };
@@ -86,6 +89,7 @@ function getElements(root) {
     mapCopy: qs("#map-copy", root),
     pressure: qs("#pressure", root),
     refreshDashboard: qs("#refresh-dashboard", root),
+    refreshToast: qs("#refresh-toast", root),
     searchHeader: qs(".search-header", root),
     suggestions: qs("#suggestions", root),
     temperature: qs("#temperature", root),
@@ -122,15 +126,78 @@ function bindThemeToggle(themeToggle) {
 }
 
 function bindRefreshButton(elements, state) {
+  if (!elements.refreshDashboard || !elements.refreshToast) {
+    return;
+  }
+
+  elements.refreshDashboard.addEventListener("click", async () => {
+    if (state.isRefreshPending) {
+      return;
+    }
+
+    const query = state.activeQuery || elements.input?.value.trim() || "Catanzaro";
+    hideSuggestions(elements);
+
+    state.isRefreshPending = true;
+    setRefreshButtonPendingState(elements, true);
+    hideRefreshToast(elements, state);
+
+    const isSuccess = await fetchAndRenderWeather(query, elements, state);
+
+    state.isRefreshPending = false;
+    setRefreshButtonPendingState(elements, false);
+
+    if (isSuccess) {
+      showRefreshToast(elements, state, `Dashboard aggiornata alle ${formatCurrentTime()}`, "success");
+      return;
+    }
+
+    showRefreshToast(elements, state, "Aggiornamento non riuscito", "error");
+  });
+}
+
+function setRefreshButtonPendingState(elements, isPending) {
   if (!elements.refreshDashboard) {
     return;
   }
 
-  elements.refreshDashboard.addEventListener("click", () => {
-    const query = state.activeQuery || elements.input?.value.trim() || "Catanzaro";
-    hideSuggestions(elements);
-    void fetchAndRenderWeather(query, elements, state);
-  });
+  elements.refreshDashboard.disabled = isPending;
+  elements.refreshDashboard.classList.toggle("is-loading", isPending);
+  elements.refreshDashboard.setAttribute("aria-busy", String(isPending));
+}
+
+function showRefreshToast(elements, state, message, tone) {
+  if (!elements.refreshToast) {
+    return;
+  }
+
+  clearRefreshToastTimer(state);
+  elements.refreshToast.textContent = message;
+  elements.refreshToast.classList.remove("refresh-toast--success", "refresh-toast--error");
+  elements.refreshToast.classList.add("is-visible", `refresh-toast--${tone}`);
+
+  state.refreshToastTimer = setTimeout(() => {
+    hideRefreshToast(elements, state);
+  }, REFRESH_TOAST_HIDE_DELAY);
+}
+
+function hideRefreshToast(elements, state) {
+  if (!elements.refreshToast) {
+    return;
+  }
+
+  clearRefreshToastTimer(state);
+  elements.refreshToast.classList.remove("is-visible", "refresh-toast--success", "refresh-toast--error");
+  elements.refreshToast.textContent = "";
+}
+
+function clearRefreshToastTimer(state) {
+  if (!state.refreshToastTimer) {
+    return;
+  }
+
+  clearTimeout(state.refreshToastTimer);
+  state.refreshToastTimer = null;
 }
 
 function updateThemeToggle(themeToggle, isDark) {
@@ -429,9 +496,11 @@ async function fetchAndRenderWeather(city, elements, state) {
     const data = await fetchWeather(city);
     state.activeQuery = city;
     renderWeather(elements, state, data);
+    return true;
   } catch (error) {
     console.error("Errore meteo:", error);
     resetWeatherPanel(elements, state);
+    return false;
   }
 }
 

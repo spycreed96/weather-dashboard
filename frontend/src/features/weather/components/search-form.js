@@ -5,7 +5,9 @@ export function renderSearchForm() {
         <h1 class="search-header-title">Previsioni</h1>
 
         <div class="header-actions">
-          <button id="refresh-dashboard" class="header-action-btn header-action-btn--refresh" type="button" title="Aggiorna dashboard" aria-label="Aggiorna dashboard">↻</button>
+          <button id="refresh-dashboard" class="header-action-btn header-action-btn--refresh" type="button" title="Aggiorna dashboard" aria-label="Aggiorna dashboard" aria-busy="false">
+            <span class="refresh-dashboard-icon" aria-hidden="true">↻</span>
+          </button>
           <button id="theme-toggle" class="header-action-btn theme-toggle" type="button" title="Cambia tema" aria-label="Cambia tema">☾</button>
 
           <form id="search-form" class="search-form">
@@ -15,6 +17,8 @@ export function renderSearchForm() {
           </form>
         </div>
       </div>
+
+      <div id="refresh-toast" class="refresh-toast" role="status" aria-live="polite" aria-atomic="true"></div>
     </header>
     <div class="cities-history">
       <div class="history-wrapper">
