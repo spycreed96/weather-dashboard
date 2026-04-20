@@ -1926,9 +1926,11 @@
 
 .forecast-chart-timeline {
   display: grid;
-  gap: 10px;
+  gap: 0;
   grid-template-columns: repeat(var(--forecast-point-count), minmax(0, 1fr));
   margin-bottom: 6px;
+  padding-left: var(--forecast-plot-start, 0);
+  padding-right: var(--forecast-plot-end, 0);
 }
 
 .forecast-chart-slot {
@@ -1937,6 +1939,7 @@
   flex-direction: column;
   gap: 6px;
   min-width: 0;
+  padding-inline: 4px;
   text-align: center;
 }
 
@@ -1992,13 +1995,13 @@
 
 .forecast-chart-verticals {
   position: absolute;
-  left: 0;
-  right: 0;
+  left: var(--forecast-plot-start, 0);
+  right: var(--forecast-plot-end, 0);
   top: 16px; /* align with CHART_PADDING.top */
   bottom: 20px; /* align with CHART_PADDING.bottom */
   display: grid;
   grid-template-columns: repeat(var(--forecast-point-count), minmax(0, 1fr));
-  gap: 10px;
+  gap: 0;
   pointer-events: none;
   z-index: 6;
 }
@@ -2045,6 +2048,8 @@
 
 .forecast-chart-point {
   fill: #f9f4d1;
+  pointer-events: auto;
+  cursor: pointer;
   stroke: rgba(255, 214, 132, 0.9);
   stroke-width: 3;
 }
@@ -2508,7 +2513,7 @@
   }
 
   .forecast-chart-timeline {
-    gap: 8px;
+    gap: 0;
   }
 
   .weather-insight-card {
@@ -2588,6 +2593,6 @@
 
 @media (max-width: 980px) {
   .forecast-chart-verticals {
-    gap: 8px;
+    gap: 0;
   }
 }

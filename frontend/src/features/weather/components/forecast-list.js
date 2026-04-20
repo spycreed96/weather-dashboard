@@ -71,7 +71,58 @@ export function renderForecastChart(day, unit = "celsius", weatherData = null) {
     return `<div class="forecast-chart-empty">Dati orari non disponibili per ${formatForecastHeading(day)}.</div>`;
   }
 
-  const chartValues = hourlyForecast.map((point) => convertTemperatureValue(point.temperature, unit));
+  const SLOT_COUNT = 12;
+  const SLOT_INTERVAL_MS = 2 * 60 * 60 * 1000;
+  const OVERLAY_X1 = 28;
+  const OVERLAY_X2 = 732;
+  const overlayPlotWidth = OVERLAY_X2 - OVERLAY_X1;
+  const slotWidth = overlayPlotWidth / SLOT_COUNT;
+  const firstSlotCenter = OVERLAY_X1 + slotWidth / 2;
+  const lastSlotCenter = OVERLAY_X2 - slotWidth / 2;
+  const overlayInsetStart = ((OVERLAY_X1 / CHART_WIDTH) * 100).toFixed(4);
+  const overlayInsetEnd = (((CHART_WIDTH - OVERLAY_X2) / CHART_WIDTH) * 100).toFixed(4);
+  const now = new Date();
+  const currentHourLabel = formatHourLabel(now);
+  const forecastDate = parseForecastDate(day.date);
+  const isTodayForecast = forecastDate ? isSameLocalDate(forecastDate, now) : true;
+  const firstSlotDate = forecastDate ? new Date(forecastDate) : new Date(now);
+
+  if (isTodayForecast) {
+    firstSlotDate.setHours(now.getHours() - 2, 0, 0, 0);
+  } else {
+    firstSlotDate.setHours(0, 0, 0, 0);
+  }
+
+  const timelineStart = firstSlotDate.getTime();
+  const timelineEnd = timelineStart + (SLOT_COUNT - 1) * SLOT_INTERVAL_MS;
+
+  const resolvedHourlyForecast = hourlyForecast
+    .map((point) => {
+      const pointDate = resolveHourlyPointDate(point, forecastDate, now);
+
+      if (!pointDate) {
+        return null;
+      }
+
+      return {
+        point,
+        pointDate,
+      };
+    })
+    .filter(Boolean)
+    .sort((left, right) => left.pointDate.getTime() - right.pointDate.getTime());
+
+  const plottedHourlyForecast = resolvedHourlyForecast.filter(({ pointDate }) => {
+    const pointTime = pointDate.getTime();
+    return pointTime >= timelineStart && pointTime <= timelineEnd;
+  });
+
+  const visibleHourlyForecast = plottedHourlyForecast.length ? plottedHourlyForecast : resolvedHourlyForecast;
+  if (!visibleHourlyForecast.length) {
+    return `<div class="forecast-chart-empty">Dati orari non disponibili per ${formatForecastHeading(day)}.</div>`;
+  }
+
+  const chartValues = visibleHourlyForecast.map(({ point }) => convertTemperatureValue(point.temperature, unit));
   const minValue = Math.min(...chartValues);
   const maxValue = Math.max(...chartValues);
   const paddedRange = Math.max(4, Math.ceil((maxValue - minValue) * 0.35));
@@ -80,18 +131,15 @@ export function renderForecastChart(day, unit = "celsius", weatherData = null) {
   const safeRange = Math.max(upperBound - lowerBound, 4);
   const plotHeight = CHART_HEIGHT - CHART_PADDING.top - CHART_PADDING.bottom;
 
-  const OVERLAY_X1 = 28;
-  const OVERLAY_X2 = 732;
-  const overlayPlotWidth = OVERLAY_X2 - OVERLAY_X1;
-  const xStep = hourlyForecast.length > 1 ? overlayPlotWidth / (hourlyForecast.length - 1) : 0;
-
-  const points = hourlyForecast.map((point, index) => {
+  const points = visibleHourlyForecast.map(({ point, pointDate }, index) => {
     const value = chartValues[index];
     const normalized = (value - lowerBound) / safeRange;
+    const slotOffset = (pointDate.getTime() - timelineStart) / SLOT_INTERVAL_MS;
+    const x = Math.min(lastSlotCenter, Math.max(firstSlotCenter, firstSlotCenter + slotOffset * slotWidth));
 
     return {
       ...point,
-      x: OVERLAY_X1 + xStep * index,
+      x,
       y: CHART_HEIGHT - CHART_PADDING.bottom - normalized * plotHeight,
       value,
     };
@@ -101,33 +149,23 @@ export function renderForecastChart(day, unit = "celsius", weatherData = null) {
   const linePath = buildSmoothPath(points);
   const areaPath = buildAreaPath(points, CHART_HEIGHT - CHART_PADDING.bottom);
 
-  const SLOT_COUNT = 12;
-  const now = new Date();
-  const currentHourLabel = `${now.getHours().toString().padStart(2, "0")}:00`;
-  const firstSlotDate = new Date(now);
-  firstSlotDate.setMinutes(0, 0, 0);
-  firstSlotDate.setHours(firstSlotDate.getHours() - 2);
-
   const timelineSlots = Array.from({ length: SLOT_COUNT }, (_, index) => {
-    const slotDate = new Date(firstSlotDate);
-    slotDate.setHours(firstSlotDate.getHours() + index * 2);
-    const slotLabel = `${slotDate.getHours().toString().padStart(2, "0")}:00`;
+    const slotDate = new Date(timelineStart + index * SLOT_INTERVAL_MS);
+    const slotLabel = formatHourLabel(slotDate);
+    const isCurrentSlot = isTodayForecast && slotLabel === currentHourLabel;
 
-    let found = hourlyForecast.find((point) => point.time_label === slotLabel);
+    let found = visibleHourlyForecast.find(({ point }) => point.time_label === slotLabel)?.point;
 
-    if (!found && hourlyForecast.length) {
-      found = hourlyForecast.reduce((best, point) => {
-        const pointHour = Number(String(point.time_label).split(":")[0]);
-        const slotHour = slotDate.getHours();
-        const pointDiff = Math.abs(pointHour - slotHour);
-
+    if (!found && visibleHourlyForecast.length) {
+      found = visibleHourlyForecast.reduce((best, candidate) => {
         if (!best) {
-          return point;
+          return candidate;
         }
 
-        const bestHour = Number(String(best.time_label).split(":")[0]);
-        return Math.abs(bestHour - slotHour) <= pointDiff ? best : point;
-      }, null);
+        const bestDiff = Math.abs(best.pointDate.getTime() - slotDate.getTime());
+        const candidateDiff = Math.abs(candidate.pointDate.getTime() - slotDate.getTime());
+        return candidateDiff < bestDiff ? candidate : best;
+      }, null)?.point;
     }
 
     if (!found) {
@@ -136,14 +174,14 @@ export function renderForecastChart(day, unit = "celsius", weatherData = null) {
         temperature: null,
         icon: "",
         description: "",
-        is_now: slotLabel === currentHourLabel,
+        is_now: isCurrentSlot,
       };
     }
 
     return {
       ...found,
       time_label: slotLabel,
-      is_now: found.is_now || slotLabel === currentHourLabel,
+      is_now: found.is_now || isCurrentSlot,
     };
   });
 
@@ -165,7 +203,7 @@ export function renderForecastChart(day, unit = "celsius", weatherData = null) {
       </div>
 
       <div class="forecast-chart-stage">
-        <div class="forecast-chart-plot" style="--forecast-point-count: 12;">
+        <div class="forecast-chart-plot" style="--forecast-point-count: ${SLOT_COUNT}; --forecast-plot-start: ${overlayInsetStart}%; --forecast-plot-end: ${overlayInsetEnd}%;">
           <div class="forecast-chart-timeline">
             ${timelineSlots
               .map((point) => {
@@ -258,6 +296,44 @@ function formatAxisTemperature(value, unit = "celsius") {
   const showDegree = shouldShowTemperatureDegree(unit);
 
   return `<tspan class="forecast-chart-axis-label-value">${Math.round(value)}</tspan>${showDegree ? '<tspan class="forecast-chart-axis-label-degree">°</tspan>' : ""}${showDegree ? "" : `<tspan class="forecast-chart-axis-label-unit forecast-chart-axis-label-unit--solo">${getTemperatureUnitCharacter(unit)}</tspan>`}`;
+}
+
+function parseForecastDate(dateValue) {
+  if (!dateValue) {
+    return null;
+  }
+
+  const [year, month, dayOfMonth] = String(dateValue).split("-").map(Number);
+  const parsedDate = new Date(year, (month || 1) - 1, dayOfMonth || 1);
+  return Number.isNaN(parsedDate.getTime()) ? null : parsedDate;
+}
+
+function isSameLocalDate(leftDate, rightDate) {
+  return leftDate.getFullYear() === rightDate.getFullYear()
+    && leftDate.getMonth() === rightDate.getMonth()
+    && leftDate.getDate() === rightDate.getDate();
+}
+
+function formatHourLabel(dateValue) {
+  return `${String(dateValue.getHours()).padStart(2, "0")}:${String(dateValue.getMinutes()).padStart(2, "0")}`;
+}
+
+function resolveHourlyPointDate(point, forecastDate, now) {
+  const pointLabel = String(point?.time_label || "").trim();
+  const normalizedLabel = pointLabel.toLowerCase();
+
+  if (point?.is_now || normalizedLabel === "adesso") {
+    return new Date(now);
+  }
+
+  const timeMatch = pointLabel.match(/^(\d{1,2}):(\d{2})$/);
+  if (!timeMatch) {
+    return null;
+  }
+
+  const baseDate = forecastDate ? new Date(forecastDate) : new Date(now);
+  baseDate.setHours(Number(timeMatch[1]), Number(timeMatch[2]), 0, 0);
+  return baseDate;
 }
 
 function formatForecastHeading(day) {
