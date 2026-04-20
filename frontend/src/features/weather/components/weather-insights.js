@@ -67,9 +67,10 @@ function renderTemperatureInsightCard(weatherData, currentDay, unit) {
     return renderEmptyInsightCard("Temperatura", "I dettagli della temperatura appariranno qui dopo il caricamento dei dati meteo.");
   }
 
+  const nowLabel = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
   const temperaturePoints = hourlyForecast.length
     ? hourlyForecast
-    : [{ time_label: "Adesso", temperature: currentTemperature ?? 0, is_now: true }];
+    : [{ time_label: nowLabel, temperature: currentTemperature ?? 0, is_now: true }];
   const trend = getTemperatureTrend(temperaturePoints, currentTemperature);
   const sparkline = renderTemperatureSparkline(temperaturePoints, unit);
   const description = buildTemperatureInsightCopy(temperaturePoints, currentTemperature, unit, trend.label);
@@ -682,16 +683,16 @@ function buildTemperatureInsightCopy(points, currentTemperature, unit, trendLabe
 
   const maximumPoint = getMaximumTemperaturePoint(points);
   const maximumCopy = maximumPoint?.time_label
-    ? ` Massimo previsto di ${formatDetailTemperature(maximumPoint.temperature, unit)} alle ${maximumPoint.time_label}.`
+    ? ` Massimo previsto di ${formatDetailTemperature(maximumPoint.temperature, unit)} alle ${formatPointTimeLabel(maximumPoint)}.`
     : "";
   const nightLowPoint = getNighttimeLowPoint(points);
   if (nightLowPoint) {
-    return `${lead}${maximumCopy} Durante la notte minimo di ${formatDetailTemperature(nightLowPoint.temperature, unit)} alle ${nightLowPoint.time_label}.`;
+    return `${lead}${maximumCopy} Durante la notte minimo di ${formatDetailTemperature(nightLowPoint.temperature, unit)} alle ${formatPointTimeLabel(nightLowPoint)}.`;
   }
 
   const minimumPoint = getMinimumTemperaturePoint(points);
   if (minimumPoint?.time_label) {
-    return `${lead}${maximumCopy} Minimo previsto di ${formatDetailTemperature(minimumPoint.temperature, unit)} alle ${minimumPoint.time_label}.`;
+    return `${lead}${maximumCopy} Minimo previsto di ${formatDetailTemperature(minimumPoint.temperature, unit)} alle ${formatPointTimeLabel(minimumPoint)}.`;
   }
 
   return `${lead}${maximumCopy}`;
@@ -1704,4 +1705,20 @@ function buildNumericPlotPoints(values, unit) {
       INSIGHT_CHART_PADDING.bottom -
       ((value - lowerBound) / normalizedRange) * plotHeight,
   }));
+}
+
+function formatPointTimeLabel(point) {
+  if (!point) return "";
+  const label = point.time_label;
+  if (typeof label === "string" && /^\d{1,2}:\d{2}$/.test(label)) return label;
+  if (point.is_now) return getCurrentTimeLabel();
+  if (typeof label === "string" && label.trim().toLowerCase() === "adesso") return getCurrentTimeLabel();
+  if (point.iso_time) {
+    try {
+      return typeof luxon !== 'undefined' ? luxon.DateTime.fromISO(point.iso_time).toFormat('HH:mm') : new Date(point.iso_time).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+    } catch (e) {
+      // fallback
+    }
+  }
+  return label || "";
 }

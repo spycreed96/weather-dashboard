@@ -476,7 +476,7 @@ def build_current_hour_entry(current_payload: dict, current_local_dt: datetime) 
         "timestamp": current_payload.get("last_updated_epoch") or int(current_local_dt.timestamp()),
         "sort_key": current_local_dt.hour + (current_local_dt.minute / 60),
         "hour": current_local_dt.hour,
-        "time_label": "Adesso",
+        "time_label": current_local_dt.strftime("%H:%M"),
         "temperature": round(current_payload.get("temp_c", 0)),
         "icon": normalize_weatherapi_icon(condition.get("icon")),
         "description": condition.get("text", ""),

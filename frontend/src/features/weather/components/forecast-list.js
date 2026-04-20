@@ -241,7 +241,7 @@ function resolveHourlyPointDate(point, forecastDate, now) {
   const pointLabel = String(point?.time_label || "").trim();
   const normalizedLabel = pointLabel.toLowerCase();
 
-  if (point?.is_now || normalizedLabel === "adesso") {
+  if (point?.is_now) {
     return new Date(now);
   }
 
