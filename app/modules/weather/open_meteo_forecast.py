@@ -126,7 +126,8 @@ def build_open_meteo_forecast_days(
             continue
 
         closest_entry = min(day_entries, key=lambda entry: abs(entry["hour"] - current_local_dt.hour))
-        display_entries = [entry for entry in day_entries if entry["hour"] % 3 == 0] or day_entries[::3] or day_entries
+        # Provide full hourly entries so frontend can render a point and tooltip for every hour
+        display_entries = day_entries
         day_icon, day_description = get_open_meteo_icon_and_description(
             weather_codes[index] if index < len(weather_codes) else None,
             13,
