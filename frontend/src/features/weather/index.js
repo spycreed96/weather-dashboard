@@ -767,7 +767,7 @@ function renderSelectedForecastChart(elements, state) {
   }
 
   const selectedDay = state.forecastData.find((day) => day.date === state.selectedForecastDate) || null;
-  elements.forecastChart.innerHTML = renderForecastChart(selectedDay, state.temperatureUnit);
+  elements.forecastChart.innerHTML = renderForecastChart(selectedDay, state.temperatureUnit, state.currentWeather);
   bindForecastChartInteractions(elements, state);
 }
 

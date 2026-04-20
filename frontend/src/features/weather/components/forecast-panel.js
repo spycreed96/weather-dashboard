@@ -14,11 +14,13 @@ export function renderForecastPanel() {
   return `
     <section class="forecast-panel" aria-labelledby="forecast-panel-title">
       <div class="forecast-toolbar">
-        <div class="feature-tabs" aria-label="Panoramica forecast">
-          <span class="forecast-toolbar-label">Ogni ora</span>
-          ${FORECAST_TAB_LABELS.map(
-            (label, index) => `<span class="feature-tab${index === 0 ? " is-active" : ""}">${label}</span>`,
-          ).join("")}
+        <div class="forecast-toolbar-scroll">
+          <div class="feature-tabs" aria-label="Panoramica forecast">
+            <span class="forecast-toolbar-label">Ogni ora</span>
+            ${FORECAST_TAB_LABELS.map(
+              (label, index) => `<span class="feature-tab${index === 0 ? " is-active" : ""}">${label}</span>`,
+            ).join("")}
+          </div>
         </div>
 
         <div class="forecast-view-toggle" aria-hidden="true">
@@ -36,7 +38,7 @@ export function renderForecastPanel() {
       <div class="forecast-panel-header">
         <div>
           <h3 id="forecast-panel-title">Panoramica</h3>
-          <p class="forecast-panel-copy">Andamento orario della temperatura e vista rapida sui prossimi giorni.</p>
+          <p class="forecast-panel-copy">Panello orario con vista termica, trend giornaliero e contesto astronomico.</p>
         </div>
 
         <div class="forecast-panel-meta" aria-hidden="true">

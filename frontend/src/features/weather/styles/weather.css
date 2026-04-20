@@ -456,12 +456,24 @@
   margin-bottom: 18px;
 }
 
+.forecast-toolbar-scroll {
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow-x: auto;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+
+.forecast-toolbar-scroll::-webkit-scrollbar {
+  display: none;
+}
+
 .feature-tabs {
   align-items: center;
-  display: flex;
-  flex-wrap: wrap;
+  display: inline-flex;
   gap: 10px;
   min-width: 0;
+  white-space: nowrap;
 }
 
 .forecast-toolbar-label {
@@ -493,10 +505,11 @@
 
 .forecast-view-toggle {
   align-items: center;
-  background: rgba(20, 24, 50, 0.5);
+  background: rgba(16, 20, 41, 0.62);
   border: 1px solid rgba(255, 255, 255, 0.08);
   border-radius: 14px;
   display: inline-flex;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.04);
   flex-shrink: 0;
   gap: 6px;
   padding: 6px;
@@ -1624,10 +1637,14 @@
 
 .forecast-carousel {
   align-items: center;
+  background: linear-gradient(180deg, rgba(17, 21, 48, 0.28), rgba(255, 255, 255, 0.02));
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 20px;
   display: grid;
   gap: 12px;
   grid-template-columns: auto minmax(0, 1fr) auto;
   margin-bottom: 18px;
+  padding: 10px;
 }
 
 .forecast-nav-btn {
@@ -1669,9 +1686,10 @@
 
 .forecast-day-card {
   appearance: none;
-  background: rgba(255, 255, 255, 0.06);
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.08), rgba(255, 255, 255, 0.03));
   border: 1px solid rgba(255, 255, 255, 0.08);
   border-radius: 20px;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.04);
   color: #ffffff;
   cursor: pointer;
   display: flex;
@@ -1690,7 +1708,9 @@
 }
 
 .forecast-day-card.is-active {
-  background: linear-gradient(180deg, rgba(255, 205, 90, 0.16), rgba(255, 255, 255, 0.05));
+  background:
+    radial-gradient(circle at top left, rgba(255, 221, 110, 0.22), transparent 42%),
+    linear-gradient(180deg, rgba(255, 205, 90, 0.14), rgba(255, 255, 255, 0.05));
   border-color: rgba(255, 205, 90, 0.55);
   box-shadow: 0 12px 28px rgba(0, 0, 0, 0.16);
 }
@@ -1824,10 +1844,11 @@
 
 .forecast-chart {
   background:
-    radial-gradient(circle at top, rgba(255, 171, 125, 0.18), transparent 48%),
-    linear-gradient(180deg, rgba(101, 133, 255, 0.08), rgba(255, 255, 255, 0.03));
+    radial-gradient(circle at top, rgba(255, 171, 125, 0.16), transparent 52%),
+    linear-gradient(180deg, rgba(20, 24, 54, 0.54), rgba(255, 255, 255, 0.02));
   border: 1px solid rgba(255, 255, 255, 0.12);
   border-radius: 22px;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.04);
   min-height: 316px;
   padding: 18px 0px;
 }
@@ -1847,6 +1868,12 @@
   gap: 18px;
 }
 
+.forecast-chart-stage {
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.03), rgba(9, 12, 34, 0.08));
+  border-block: 1px solid rgba(255, 255, 255, 0.05);
+  padding: 0 14px 14px;
+}
+
 .forecast-chart-copy-row {
   align-items: flex-end;
   display: flex;
@@ -1857,7 +1884,7 @@
 }
 
 .forecast-chart-kicker {
-  color: var(--muted);
+  color: rgba(235, 238, 255, 0.6);
   font-size: 0.82rem;
   font-weight: 700;
   letter-spacing: 0.08em;
@@ -1866,20 +1893,42 @@
 }
 
 .forecast-chart-title {
+  color: #ffffff;
   font-size: 1.15rem;
   margin: 0;
 }
 
-.forecast-chart-description {
-  color: var(--muted);
-  font-size: 0.9rem;
-  margin: 0;
+.forecast-chart-status {
+  align-items: center;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 999px;
+  color: rgba(255, 255, 255, 0.82);
+  display: inline-flex;
+  gap: 8px;
+  min-height: 34px;
+  padding: 0 12px;
+}
+
+.forecast-chart-status-dot {
+  background: linear-gradient(180deg, #f1f4ff 0%, #b9c7ff 100%);
+  border-radius: 50%;
+  box-shadow: 0 0 0 3px rgba(255, 255, 255, 0.08);
+  display: inline-flex;
+  height: 8px;
+  width: 8px;
+}
+
+.forecast-chart-status-text {
+  font-size: 0.85rem;
+  font-weight: 700;
 }
 
 .forecast-chart-timeline {
   display: grid;
   gap: 10px;
   grid-template-columns: repeat(var(--forecast-point-count), minmax(0, 1fr));
+  margin-bottom: 6px;
 }
 
 .forecast-chart-slot {
@@ -1892,7 +1941,7 @@
 }
 
 .forecast-chart-time {
-  color: var(--muted);
+  color: rgba(235, 238, 255, 0.72);
   font-size: 0.78rem;
   font-weight: 600;
 }
@@ -1914,11 +1963,13 @@
 }
 
 .forecast-chart-value {
+  color: #ffffff;
   font-size: 0.95rem;
   font-weight: 700;
 }
 
 .forecast-chart-canvas {
+  border-radius: 18px;
   overflow-x: auto;
   position: relative;
 }
@@ -1931,7 +1982,7 @@
 }
 
 .forecast-chart-grid {
-  stroke: rgba(255, 255, 255, 0.18);
+  stroke: rgba(255, 255, 255, 0.12);
   stroke-width: 1;
 }
 
@@ -1967,7 +2018,7 @@
 }
 
 .forecast-chart-axis-label {
-  fill: var(--muted);
+  fill: rgba(235, 238, 255, 0.62);
   font-size: 13px;
   font-weight: 600;
 }
@@ -1986,15 +2037,15 @@
 
 .forecast-chart-line {
   fill: none;
-  stroke: #ff986d;
+  stroke: #f6f6f2;
   stroke-linecap: round;
   stroke-linejoin: round;
   stroke-width: 4;
 }
 
 .forecast-chart-point {
-  fill: #ffffff;
-  stroke: #ff986d;
+  fill: #f9f4d1;
+  stroke: rgba(255, 214, 132, 0.9);
   stroke-width: 3;
 }
 
@@ -2049,6 +2100,52 @@
 
 .forecast-chart-point--now {
   fill: #ffc857;
+}
+
+.forecast-chart-footer {
+  align-items: center;
+  display: flex;
+  gap: 12px;
+  justify-content: space-between;
+  padding-top: 10px;
+}
+
+.forecast-chart-legend,
+.forecast-chart-lunar {
+  align-items: center;
+  color: rgba(235, 238, 255, 0.82);
+  display: inline-flex;
+  gap: 10px;
+}
+
+.forecast-chart-legend-text,
+.forecast-chart-lunar-text {
+  font-size: 0.9rem;
+}
+
+.forecast-chart-legend-dot,
+.forecast-chart-lunar-dot {
+  border-radius: 999px;
+  display: inline-flex;
+  flex: 0 0 auto;
+}
+
+.forecast-chart-legend-dot {
+  background: linear-gradient(90deg, #8ef3df 0%, #ffdd7c 100%);
+  height: 12px;
+  width: 12px;
+}
+
+.forecast-chart-lunar-dot {
+  background: linear-gradient(180deg, #ffeb9d 0%, #e5bc33 100%);
+  box-shadow: inset -4px 0 0 rgba(45, 54, 95, 0.66);
+  height: 14px;
+  width: 14px;
+}
+
+.forecast-chart-lunar strong {
+  color: #ffffff;
+  font-weight: 700;
 }
 
 /* forecast panel related styles removed */
@@ -2397,6 +2494,10 @@
     flex-direction: column;
   }
 
+  .forecast-toolbar-scroll {
+    width: 100%;
+  }
+
   .forecast-view-toggle {
     align-self: flex-start;
   }
@@ -2462,6 +2563,11 @@
 
   .forecast-day-card {
     flex-basis: 128px;
+  }
+
+  .forecast-chart-footer {
+    align-items: flex-start;
+    flex-direction: column;
   }
 
   .weather-insight-values {
