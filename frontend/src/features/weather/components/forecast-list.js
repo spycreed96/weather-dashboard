@@ -17,40 +17,6 @@ const CHART_PADDING = {
   left: 54,
 };
 
-export function renderForecastList() {
-  
-
-  return `
-    <section class="forecast-panel" aria-labelledby="forecast-panel-title">
-      <div class="forecast-panel-header">
-        <div>
-          <h3 id="forecast-panel-title">Panoramica</h3>
-          <p class="forecast-panel-copy">Seleziona un giorno dalla lista delle previsioni per aggiornare la curva della temperatura.</p>
-        </div>
-      </div>
-      <div id="forecast-chart" class="forecast-chart" aria-live="polite"></div>
-      <div class="forecast-carousel">
-        <button id="forecast-prev" class="forecast-nav-btn" type="button" aria-label="Scorri forecast a sinistra">&larr;</button>
-        <div id="daily-forecast-list" class="daily-forecast-list" aria-label="Previsioni giornaliere"></div>
-        <button id="forecast-next" class="forecast-nav-btn" type="button" aria-label="Scorri forecast a destra">&rarr;</button>
-      </div>
-    </section>
-  `;
-}
-
-export function renderFeatureTabs() {
-  return `
-    <div class="feature-tabs" role="tablist" aria-label="Pannello funzionalità meteo">
-      <button type="button" class="feature-tab is-active" data-feature="panoramica">Panoramica</button>
-      <button type="button" class="feature-tab" data-feature="precipitazioni">Precipitazioni</button>
-      <button type="button" class="feature-tab" data-feature="vento">Vento</button>
-      <button type="button" class="feature-tab" data-feature="qualita-aria">Qualità dell'aria</button>
-      <button type="button" class="feature-tab" data-feature="umidita">Umidità</button>
-      <button type="button" class="feature-tab" data-feature="nuvolosita">Nuvolosità</button>
-    </div>
-  `;
-}
-
 export function renderForecastItems(forecastDays, selectedDate = "", unit = "celsius") {
   const visibleDays = forecastDays.slice(0, 11);
 
@@ -95,7 +61,7 @@ export function renderForecastItems(forecastDays, selectedDate = "", unit = "cel
     .join("");
 }
 
-export function renderForecastChart(day, unit = "celsius") {
+export function renderForecastChart(day, unit = "celsius", weatherData = null) {
   if (!day) {
     return '<div class="forecast-chart-empty">Seleziona un giorno per vedere l\'andamento della temperatura nel tempo.</div>';
   }
@@ -105,58 +71,101 @@ export function renderForecastChart(day, unit = "celsius") {
     return `<div class="forecast-chart-empty">Dati orari non disponibili per ${formatForecastHeading(day)}.</div>`;
   }
 
-  const plotWidth = CHART_WIDTH - CHART_PADDING.left - CHART_PADDING.right;
-  const plotHeight = CHART_HEIGHT - CHART_PADDING.top - CHART_PADDING.bottom;
-  const chartValues = hourlyForecast.map((point) => convertTemperatureValue(point.temperature, unit));
+  const SLOT_COUNT = 12;
+  const SLOT_INTERVAL_MS = 2 * 60 * 60 * 1000;
+  const OVERLAY_X1 = 28;
+  const OVERLAY_X2 = 732;
+  const overlayPlotWidth = OVERLAY_X2 - OVERLAY_X1;
+  const slotWidth = overlayPlotWidth / SLOT_COUNT;
+  const firstSlotCenter = OVERLAY_X1 + slotWidth / 2;
+  const lastSlotCenter = OVERLAY_X2 - slotWidth / 2;
+  const overlayInsetStart = ((OVERLAY_X1 / CHART_WIDTH) * 100).toFixed(4);
+  const overlayInsetEnd = (((CHART_WIDTH - OVERLAY_X2) / CHART_WIDTH) * 100).toFixed(4);
+  const now = new Date();
+  const currentHourLabel = formatHourLabel(now);
+  const forecastDate = parseForecastDate(day.date);
+  const isTodayForecast = forecastDate ? isSameLocalDate(forecastDate, now) : true;
+  const firstSlotDate = forecastDate ? new Date(forecastDate) : new Date(now);
+
+  if (isTodayForecast) {
+    firstSlotDate.setHours(now.getHours() - 2, 0, 0, 0);
+  } else {
+    firstSlotDate.setHours(0, 0, 0, 0);
+  }
+
+  const timelineStart = firstSlotDate.getTime();
+  const timelineEnd = timelineStart + (SLOT_COUNT - 1) * SLOT_INTERVAL_MS;
+
+  const resolvedHourlyForecast = hourlyForecast
+    .map((point) => {
+      const pointDate = resolveHourlyPointDate(point, forecastDate, now);
+
+      if (!pointDate) {
+        return null;
+      }
+
+      return {
+        point,
+        pointDate,
+      };
+    })
+    .filter(Boolean)
+    .sort((left, right) => left.pointDate.getTime() - right.pointDate.getTime());
+
+  const plottedHourlyForecast = resolvedHourlyForecast.filter(({ pointDate }) => {
+    const pointTime = pointDate.getTime();
+    return pointTime >= timelineStart && pointTime <= timelineEnd;
+  });
+
+  const visibleHourlyForecast = plottedHourlyForecast.length ? plottedHourlyForecast : resolvedHourlyForecast;
+  if (!visibleHourlyForecast.length) {
+    return `<div class="forecast-chart-empty">Dati orari non disponibili per ${formatForecastHeading(day)}.</div>`;
+  }
+
+  const chartValues = visibleHourlyForecast.map(({ point }) => convertTemperatureValue(point.temperature, unit));
   const minValue = Math.min(...chartValues);
   const maxValue = Math.max(...chartValues);
   const paddedRange = Math.max(4, Math.ceil((maxValue - minValue) * 0.35));
   const lowerBound = Math.floor(minValue - paddedRange / 2);
   const upperBound = Math.ceil(maxValue + paddedRange / 2);
   const safeRange = Math.max(upperBound - lowerBound, 4);
-  // Align SVG plot X coordinates with the overlay/grid extents (match horizontal grid x1/x2)
-  const OVERLAY_X1 = 28;
-  const OVERLAY_X2 = 732;
-  const overlayPlotWidth = OVERLAY_X2 - OVERLAY_X1;
-  const xStep = hourlyForecast.length > 1 ? overlayPlotWidth / (hourlyForecast.length - 1) : 0;
+  const plotHeight = CHART_HEIGHT - CHART_PADDING.top - CHART_PADDING.bottom;
 
-  const points = hourlyForecast.map((point, index) => {
+  const points = visibleHourlyForecast.map(({ point, pointDate }, index) => {
     const value = chartValues[index];
     const normalized = (value - lowerBound) / safeRange;
+    const slotOffset = (pointDate.getTime() - timelineStart) / SLOT_INTERVAL_MS;
+    const x = Math.min(lastSlotCenter, Math.max(firstSlotCenter, firstSlotCenter + slotOffset * slotWidth));
 
     return {
       ...point,
-      x: OVERLAY_X1 + xStep * index,
+      x,
       y: CHART_HEIGHT - CHART_PADDING.bottom - normalized * plotHeight,
       value,
     };
   });
+
   const ticks = Array.from({ length: 5 }, (_, index) => upperBound - (safeRange / 4) * index);
   const linePath = buildSmoothPath(points);
   const areaPath = buildAreaPath(points, CHART_HEIGHT - CHART_PADDING.bottom);
 
-  // Build timeline slots: 12 items, starting 2 hours before now, every 2 hours
-  const SLOT_COUNT = 12;
-  const now = new Date();
-  const firstSlotDate = new Date(now);
-  firstSlotDate.setMinutes(0, 0, 0);
-  firstSlotDate.setHours(firstSlotDate.getHours() - 2);
+  const timelineSlots = Array.from({ length: SLOT_COUNT }, (_, index) => {
+    const slotDate = new Date(timelineStart + index * SLOT_INTERVAL_MS);
+    const slotLabel = formatHourLabel(slotDate);
+    const isCurrentSlot = isTodayForecast && slotLabel === currentHourLabel;
 
-  const timelineSlots = Array.from({ length: SLOT_COUNT }).map((_, idx) => {
-    const slotDate = new Date(firstSlotDate);
-    slotDate.setHours(firstSlotDate.getHours() + idx * 2);
-    const slotLabel = `${slotDate.getHours().toString().padStart(2, "0")}:00`;
+    let found = visibleHourlyForecast.find(({ point }) => point.time_label === slotLabel)?.point;
 
-    let found = hourlyForecast.find((p) => p.time_label === slotLabel);
-    if (!found && hourlyForecast.length) {
-      found = hourlyForecast.reduce((best, p) => {
-        const pHour = Number(String(p.time_label).split(":")[0]);
-        const slotHour = slotDate.getHours();
-        const diff = Math.abs(pHour - slotHour);
-        if (!best) return p;
-        const bestHour = Number(String(best.time_label).split(":")[0]);
-        return Math.abs(bestHour - slotHour) <= diff ? best : p;
-      }, null);
+    if (!found && visibleHourlyForecast.length) {
+      found = visibleHourlyForecast.reduce((best, candidate) => {
+        if (!best) {
+          return candidate;
+        }
+
+        const bestDiff = Math.abs(best.pointDate.getTime() - slotDate.getTime());
+        const candidateDiff = Math.abs(candidate.pointDate.getTime() - slotDate.getTime());
+        return candidateDiff < bestDiff ? candidate : best;
+      }, null)?.point;
     }
 
     if (!found) {
@@ -165,99 +174,118 @@ export function renderForecastChart(day, unit = "celsius") {
         temperature: null,
         icon: "",
         description: "",
-        is_now: slotLabel === `${now.getHours().toString().padStart(2, "0")}:00`,
+        is_now: isCurrentSlot,
       };
     }
 
     return {
       ...found,
       time_label: slotLabel,
-      is_now: found.is_now || slotLabel === `${now.getHours().toString().padStart(2, "0")}:00`,
+      is_now: found.is_now || isCurrentSlot,
     };
   });
 
-  // Note: vertical lines will be rendered as an overlay grid to align with the timeline slots
+  const verticalOverlay = timelineSlots.map(() => '<div class="forecast-chart-vertical-cell"></div>').join("");
+  const moonPhaseLabel = capitalizeText(weatherData?.moon_phase_label || "fase non disponibile");
 
-  const verticalOverlay = timelineSlots.map(() => `<div class="forecast-chart-vertical-cell"></div>`).join("");
   return `
     <div class="forecast-chart-shell">
       <div class="forecast-chart-copy-row">
-        <div>
-          <p class="forecast-chart-kicker">Temperatura nel tempo</p>
+        <div class="forecast-chart-heading">
+          <p class="forecast-chart-kicker">Panoramica</p>
           <h4 class="forecast-chart-title">${formatForecastHeading(day)}</h4>
         </div>
-        <p class="forecast-chart-description">Asse X: tempo. Asse Y: temperatura.</p>
+
+        <div class="forecast-chart-status" aria-hidden="true">
+          <span class="forecast-chart-status-dot"></span>
+          <span class="forecast-chart-status-text">Percepita</span>
+        </div>
       </div>
 
-      <div class="forecast-chart-plot" style="--forecast-point-count: 12;">
-        <div class="forecast-chart-timeline">
-          ${timelineSlots
-            .map((point) => {
-              const iconUrl = getWeatherIconUrl(point.icon, "2x");
+      <div class="forecast-chart-stage">
+        <div class="forecast-chart-plot" style="--forecast-point-count: ${SLOT_COUNT}; --forecast-plot-start: ${overlayInsetStart}%; --forecast-plot-end: ${overlayInsetEnd}%;">
+          <div class="forecast-chart-timeline">
+            ${timelineSlots
+              .map((point) => {
+                const iconUrl = getWeatherIconUrl(point.icon, "2x");
 
-              return `
-                <div class="forecast-chart-slot">
-                  <span class="forecast-chart-time${point.is_now ? " forecast-chart-time--now" : ""}">${point.time_label}</span>
-                  ${iconUrl ? `<img class="forecast-chart-icon" src="${iconUrl}" alt="${point.description}" />` : '<span class="forecast-chart-icon-placeholder">-</span>'}
-                  <span class="forecast-chart-value" aria-label="${formatTemperature(point.temperature, unit)}">${renderDetailInlineTemperature(point.temperature, unit)}</span>
-                </div>
-              `;
-            })
-            .join("")}
-        </div>
-
-        <div class="forecast-chart-canvas">
-          <svg class="forecast-chart-svg" viewBox="0 0 ${CHART_WIDTH} ${CHART_HEIGHT}" role="img" aria-label="Andamento della temperatura per ${formatForecastHeading(day)}">
-          <defs>
-            <linearGradient id="forecast-area-gradient" x1="0" x2="0" y1="0" y2="1">
-              <stop offset="0%" stop-color="rgba(255, 136, 98, 0.45)" />
-              <stop offset="100%" stop-color="rgba(255, 136, 98, 0.03)" />
-            </linearGradient>
-          </defs>
-
-          ${ticks
-            .map((tick) => {
-              const y = CHART_HEIGHT - CHART_PADDING.bottom - ((tick - lowerBound) / safeRange) * plotHeight;
-
-              return `
-                <line class="forecast-chart-grid" x1="28" y1="${y}" x2="732" y2="${y}" />
-                <text class="forecast-chart-axis-label" x="23" y="${y + 4}" text-anchor="end">${formatAxisTemperature(tick, unit)}</text>
-              `;
-            })
-            .join("")}
-
-          <path class="forecast-chart-area" d="${areaPath}" />
-          <path class="forecast-chart-line" d="${linePath}" />
-
-          ${points
-            .map(
-              (point, index) => `
-                <circle
-                  class="forecast-chart-point${point.is_now ? " forecast-chart-point--now" : ""}"
-                  cx="${point.x}"
-                  cy="${point.y}"
-                  r="${point.is_now ? 5.5 : 4.5}"
-                  data-index="${index}"
-                  data-time="${point.time_label}"
-                  data-temp="${point.temperature}"
-                  data-icon="${getWeatherIconUrl(point.icon, "2x") || ""}"
-                />
-              `,
-            )
-            .join("")}
-          </svg>
-
-          <div class="forecast-chart-verticals" aria-hidden="true">
-            ${verticalOverlay}
+                return `
+                  <div class="forecast-chart-slot">
+                    <span class="forecast-chart-time${point.is_now ? " forecast-chart-time--now" : ""}">${point.time_label}</span>
+                    ${iconUrl ? `<img class="forecast-chart-icon" src="${iconUrl}" alt="${point.description}" />` : '<span class="forecast-chart-icon-placeholder">-</span>'}
+                    <span class="forecast-chart-value" aria-label="${formatTemperature(point.temperature, unit)}">${renderDetailInlineTemperature(point.temperature, unit)}</span>
+                  </div>
+                `;
+              })
+              .join("")}
           </div>
 
-          <div class="forecast-chart-tooltip" aria-hidden="true">
-          <div class="forecast-chart-tooltip-inner">
-            <div class="forecast-chart-tooltip-time">00:00</div>
-            <img class="forecast-chart-tooltip-icon" src="" alt="" />
-            <div class="forecast-chart-tooltip-temp">--°</div>
+          <div class="forecast-chart-canvas">
+            <svg class="forecast-chart-svg" viewBox="0 0 ${CHART_WIDTH} ${CHART_HEIGHT}" role="img" aria-label="Andamento della temperatura per ${formatForecastHeading(day)}">
+              <defs>
+                <linearGradient id="forecast-area-gradient" x1="0" x2="0" y1="0" y2="1">
+                  <stop offset="0%" stop-color="rgba(255, 213, 138, 0.34)" />
+                  <stop offset="55%" stop-color="rgba(184, 224, 165, 0.2)" />
+                  <stop offset="100%" stop-color="rgba(255, 136, 98, 0.02)" />
+                </linearGradient>
+              </defs>
+
+              ${ticks
+                .map((tick) => {
+                  const y = CHART_HEIGHT - CHART_PADDING.bottom - ((tick - lowerBound) / safeRange) * plotHeight;
+
+                  return `
+                    <line class="forecast-chart-grid" x1="28" y1="${y}" x2="732" y2="${y}" />
+                    <text class="forecast-chart-axis-label" x="23" y="${y + 4}" text-anchor="end">${formatAxisTemperature(tick, unit)}</text>
+                  `;
+                })
+                .join("")}
+
+              <path class="forecast-chart-area" d="${areaPath}" />
+              <path class="forecast-chart-line" d="${linePath}" />
+
+              ${points
+                .map(
+                  (point, index) => `
+                    <circle
+                      class="forecast-chart-point${point.is_now ? " forecast-chart-point--now" : ""}"
+                      cx="${point.x}"
+                      cy="${point.y}"
+                      r="${point.is_now ? 5.5 : 4.5}"
+                      data-index="${index}"
+                      data-time="${point.time_label}"
+                      data-temp="${point.temperature}"
+                      data-icon="${getWeatherIconUrl(point.icon, "2x") || ""}"
+                    />
+                  `,
+                )
+                .join("")}
+            </svg>
+
+            <div class="forecast-chart-verticals" aria-hidden="true">
+              ${verticalOverlay}
+            </div>
+
+            <div class="forecast-chart-tooltip" aria-hidden="true">
+              <div class="forecast-chart-tooltip-inner">
+                <div class="forecast-chart-tooltip-time">00:00</div>
+                <img class="forecast-chart-tooltip-icon" src="" alt="" />
+                <div class="forecast-chart-tooltip-temp">--°</div>
+              </div>
+            </div>
           </div>
         </div>
+
+        <div class="forecast-chart-footer">
+          <div class="forecast-chart-legend">
+            <span class="forecast-chart-legend-dot"></span>
+            <span class="forecast-chart-legend-text">Temperatura</span>
+          </div>
+
+          <div class="forecast-chart-lunar">
+            <span class="forecast-chart-lunar-dot"></span>
+            <span class="forecast-chart-lunar-text">Fase lunare: <strong>${moonPhaseLabel}</strong></span>
+          </div>
         </div>
       </div>
     </div>
@@ -268,6 +296,44 @@ function formatAxisTemperature(value, unit = "celsius") {
   const showDegree = shouldShowTemperatureDegree(unit);
 
   return `<tspan class="forecast-chart-axis-label-value">${Math.round(value)}</tspan>${showDegree ? '<tspan class="forecast-chart-axis-label-degree">°</tspan>' : ""}${showDegree ? "" : `<tspan class="forecast-chart-axis-label-unit forecast-chart-axis-label-unit--solo">${getTemperatureUnitCharacter(unit)}</tspan>`}`;
+}
+
+function parseForecastDate(dateValue) {
+  if (!dateValue) {
+    return null;
+  }
+
+  const [year, month, dayOfMonth] = String(dateValue).split("-").map(Number);
+  const parsedDate = new Date(year, (month || 1) - 1, dayOfMonth || 1);
+  return Number.isNaN(parsedDate.getTime()) ? null : parsedDate;
+}
+
+function isSameLocalDate(leftDate, rightDate) {
+  return leftDate.getFullYear() === rightDate.getFullYear()
+    && leftDate.getMonth() === rightDate.getMonth()
+    && leftDate.getDate() === rightDate.getDate();
+}
+
+function formatHourLabel(dateValue) {
+  return `${String(dateValue.getHours()).padStart(2, "0")}:${String(dateValue.getMinutes()).padStart(2, "0")}`;
+}
+
+function resolveHourlyPointDate(point, forecastDate, now) {
+  const pointLabel = String(point?.time_label || "").trim();
+  const normalizedLabel = pointLabel.toLowerCase();
+
+  if (point?.is_now || normalizedLabel === "adesso") {
+    return new Date(now);
+  }
+
+  const timeMatch = pointLabel.match(/^(\d{1,2}):(\d{2})$/);
+  if (!timeMatch) {
+    return null;
+  }
+
+  const baseDate = forecastDate ? new Date(forecastDate) : new Date(now);
+  baseDate.setHours(Number(timeMatch[1]), Number(timeMatch[2]), 0, 0);
+  return baseDate;
 }
 
 function formatForecastHeading(day) {

@@ -465,9 +465,9 @@ def build_hour_entry_from_weatherapi(hour_payload: dict) -> dict | None:
 
 
 def build_display_hour_entries(hourly_payloads: list[dict]) -> list[dict]:
+    # Return full hourly entries so frontend can render tooltips for every hour
     all_entries = [entry for item in hourly_payloads if (entry := build_hour_entry_from_weatherapi(item)) is not None]
-    selected_entries = [entry for entry in all_entries if entry["hour"] % 3 == 0 and entry["time_label"].endswith(":00")]
-    return selected_entries or all_entries
+    return all_entries
 
 
 def build_current_hour_entry(current_payload: dict, current_local_dt: datetime) -> dict:

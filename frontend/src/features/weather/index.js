@@ -1,6 +1,7 @@
 import { qs, qsa } from "../../shared/utils/dom.js";
 import { formatCurrentTime } from "../../shared/utils/format-date.js";
-import { renderForecastChart, renderForecastItems, renderForecastList, renderFeatureTabs } from "./components/forecast-list.js";
+import { renderForecastChart, renderForecastItems } from "./components/forecast-list.js";
+import { renderForecastPanel } from "./components/forecast-panel.js";
 import { renderSearchForm } from "./components/search-form.js";
 import { renderWeatherInsightsSection, renderWeatherInsightCards } from "./components/weather-insights.js";
 import { createHistoryItem } from "./components/weather-details.js";
@@ -30,8 +31,7 @@ export function mountWeatherFeature(root) {
       <div class="dashboard-content">
         <p id="current-location" class="current-location">--</p>
         ${renderWeatherCard()}
-        ${renderFeatureTabs()}
-        ${renderForecastList()}
+        ${renderForecastPanel()}
         ${renderWeatherInsightsSection()}
       </div>
     </main>
@@ -315,10 +315,7 @@ function positionTemperatureSettingsDropdown(toggleButton, dropdown) {
   }
 
   if (left + dropdownRect.width > window.innerWidth - spacing) {
-    left = window.innerWidth - dropdownRect.width - spacing;
-  }
-
-  if (top + dropdownRect.height > window.innerHeight - spacing) {
+      // forecast panel removed: forecastChart, forecastList, forecastNext, forecastPrev
     top = Math.max(spacing, buttonRect.top - dropdownRect.height - spacing);
   }
 
@@ -770,7 +767,7 @@ function renderSelectedForecastChart(elements, state) {
   }
 
   const selectedDay = state.forecastData.find((day) => day.date === state.selectedForecastDate) || null;
-  elements.forecastChart.innerHTML = renderForecastChart(selectedDay, state.temperatureUnit);
+  elements.forecastChart.innerHTML = renderForecastChart(selectedDay, state.temperatureUnit, state.currentWeather);
   bindForecastChartInteractions(elements, state);
 }
 
