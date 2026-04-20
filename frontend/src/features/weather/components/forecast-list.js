@@ -202,7 +202,11 @@ export function renderForecastChart(day, unit = "celsius", weatherData = null) {
         </div>
       </div>
 
-      <!-- forecast-chart-stage removed -->
+      <div class="forecast-chart-stage">
+        <div class="forecast-chart-canvas-embed">
+          <canvas id="forecast-day-chart-canvas" width="760" height="260" aria-label="Grafico temperatura del giorno"></canvas>
+        </div>
+      </div>
     </div>
   `;
 }

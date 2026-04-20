@@ -1,6 +1,7 @@
 import { qs, qsa } from "../../shared/utils/dom.js";
 import { formatCurrentTime } from "../../shared/utils/format-date.js";
 import { renderForecastChart, renderForecastItems } from "./components/forecast-list.js";
+import { initForecastDayChart } from "./components/forecast-day-chart.js";
 import { renderForecastPanel } from "./components/forecast-panel.js";
 import { renderSearchForm } from "./components/search-form.js";
 import { renderWeatherInsightsSection, renderWeatherInsightCards } from "./components/weather-insights.js";
@@ -768,6 +769,7 @@ function renderSelectedForecastChart(elements, state) {
 
   const selectedDay = state.forecastData.find((day) => day.date === state.selectedForecastDate) || null;
   elements.forecastChart.innerHTML = renderForecastChart(selectedDay, state.temperatureUnit, state.currentWeather);
+  try { initForecastDayChart(selectedDay, state.temperatureUnit); } catch (e) { /* ignore */ }
   bindForecastChartInteractions(elements, state);
 }
 
