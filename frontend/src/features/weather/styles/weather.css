@@ -1868,11 +1868,7 @@
   gap: 18px;
 }
 
-.forecast-chart-stage {
-  background: linear-gradient(180deg, rgba(255, 255, 255, 0.03), rgba(9, 12, 34, 0.08));
-  border-block: 1px solid rgba(255, 255, 255, 0.05);
-  padding: 0 14px 14px;
-}
+/* .forecast-chart-stage removed */
 
 .forecast-chart-copy-row {
   align-items: flex-end;
