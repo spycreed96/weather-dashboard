@@ -1,5 +1,11 @@
 import { DEFAULT_TEMPERATURE_PALETTE, gradientFillPlugin } from "../utils/chart-gradient.js";
-import { getWeatherIconUrl, formatDetailTemperature } from "../utils/weather-formatters.js";
+import { convertTemperatureValue } from "../utils/chart-helpers.js";
+import {
+  formatDetailTemperature,
+  getTemperatureUnitCharacter,
+  getWeatherIconUrl,
+  shouldShowTemperatureDegree,
+} from "../utils/weather-formatters.js";
 
 export function initForecastDayChart(day, unit = "celsius") {
   const canvas = document.getElementById("forecast-day-chart-canvas");
@@ -8,113 +14,138 @@ export function initForecastDayChart(day, unit = "celsius") {
 
   const hourly = Array.isArray(day.hourly_forecast) ? day.hourly_forecast : [];
 
-  // Build dataset for Chart.js (time / temperature)
   function getCurrentTimeLabel() {
     return new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
   }
 
-  const tempData = hourly.map((p) => {
-    // clone meta and normalize any literal 'Adesso' labels to current time
-    const meta = { ...p };
-    if (typeof meta.time_label === "string" && meta.time_label.trim().toLowerCase() === "adesso") {
-      meta.time_label = getCurrentTimeLabel();
-      meta.is_now = true;
-    }
+  const tempData = hourly
+    .map((point) => {
+      const meta = { ...point };
 
-    let x = null;
-    if (meta.time_label && day?.date) {
-      if (/^\d{1,2}:\d{2}$/.test(meta.time_label)) {
-        x = `${day.date}T${meta.time_label}:00`;
-      } else if (meta.is_now) {
-        x = new Date().toISOString();
+      if (typeof meta.time_label === "string" && meta.time_label.trim().toLowerCase() === "adesso") {
+        meta.time_label = getCurrentTimeLabel();
+        meta.is_now = true;
       }
-    } else if (meta.iso_time) {
-      x = meta.iso_time;
-    }
 
-    return { x: x || new Date().toISOString(), y: meta.temperature != null ? Number(meta.temperature) : null, __meta: meta };
-  }).filter((d) => !(d.__meta && d.__meta.is_now));
+      let x = null;
+      if (meta.time_label && day?.date) {
+        if (/^\d{1,2}:\d{2}$/.test(meta.time_label)) {
+          x = `${day.date}T${meta.time_label}:00`;
+        } else if (meta.is_now) {
+          x = new Date().toISOString();
+        }
+      } else if (meta.iso_time) {
+        x = meta.iso_time;
+      }
+
+      return {
+        x: x || new Date().toISOString(),
+        y: meta.temperature != null ? convertTemperatureValue(meta.temperature, unit) : null,
+        __meta: meta,
+      };
+    })
+    .filter((point) => !(point.__meta && point.__meta.is_now));
+
+  if (!tempData.length) {
+    return null;
+  }
 
   if (canvas._chartInstance) canvas._chartInstance.destroy();
   const ctx = canvas.getContext("2d");
 
-  // Preload icons
-  const labelItems = tempData.map((d) => {
-    const ms = typeof d.x === "string" ? Date.parse(d.x) : Number(d.x);
-    const iconUrl = getWeatherIconUrl(d.__meta?.icon || "", "2x");
+  const labelItems = tempData.map((point) => {
+    const ms = typeof point.x === "string" ? Date.parse(point.x) : Number(point.x);
+    const iconUrl = getWeatherIconUrl(point.__meta?.icon || "", "2x");
     const img = iconUrl ? new Image() : null;
-    if (img) img.src = iconUrl;
-    return { ms, img, temperature: d.y, raw: d.__meta };
+
+    if (img) {
+      img.src = iconUrl;
+    }
+
+    return {
+      ms,
+      img,
+      temperature: point.__meta?.temperature,
+      raw: point.__meta,
+    };
   });
 
+  const yValues = tempData
+    .map((point) => Number(point.y))
+    .filter((value) => Number.isFinite(value));
+  const yScaleConfig = getChartTemperatureScale(yValues, unit);
+
   const hourlyLabelsPlugin = {
-    id: 'hourlyLabels',
+    id: "hourlyLabels",
     afterDraw(chart) {
-      const sc = chart.scales?.x;
-      if (!sc) return;
+      const xScale = chart.scales?.x;
+      if (!xScale || !chart.chartArea) return;
+
       const chartArea = chart.chartArea;
       const drawAreaTop = chartArea.top;
-      const paddingTop = (chart.options.layout && chart.options.layout.padding && chart.options.layout.padding.top) || 0;
-
+      const paddingTop = chart.options.layout?.padding?.top || 0;
       const ctx2 = chart.ctx;
-      ctx2.save();
-      ctx2.textAlign = 'center';
-      ctx2.textBaseline = 'middle';
-      ctx2.fillStyle = getComputedStyle(document.documentElement).getPropertyValue('--text') || '#ffffff';
-      // fonts and colors
       const rootStyles = getComputedStyle(document.documentElement);
+
+      ctx2.save();
+      ctx2.textAlign = "center";
+      ctx2.textBaseline = "middle";
 
       const timeFontSize = 12;
       const tempFontSize = 13;
       const timeFont = `${timeFontSize}px system-ui, Arial`;
       const tempFont = `700 ${tempFontSize}px system-ui, Arial`;
-
-      // positions inside the top padding area (stacked column)
       const timeY = drawAreaTop - Math.round(paddingTop * 0.75);
       const iconY = drawAreaTop - Math.round(paddingTop * 0.55);
       const tempY = drawAreaTop - Math.round(paddingTop * 0.35);
-      const isDark = document.body.classList.contains('dark');
-      const cssMuted = (rootStyles.getPropertyValue('--muted') || '').trim();
-      const defaultTimeColor = isDark ? '#ffffff' : '#0f172a';
+      const isDark = document.body.classList.contains("dark");
+      const cssMuted = (rootStyles.getPropertyValue("--muted") || "").trim();
+      const defaultTimeColor = isDark ? "#ffffff" : "#0f172a";
+      const tempColor = (rootStyles.getPropertyValue("--accent") || "").trim() || "#ffd684";
+      const timeStroke = isDark ? "rgba(0,0,0,0.6)" : "rgba(255,255,255,0.6)";
 
-      // try to read the axis label color from CSS by creating a temporary SVG text
-      let axisLabelColor = '';
+      let axisLabelColor = "";
       try {
-        const svgNS = 'http://www.w3.org/2000/svg';
-        const tempSvg = document.createElementNS(svgNS, 'svg');
-        tempSvg.style.position = 'absolute';
-        tempSvg.style.left = '-9999px';
-        const tempText = document.createElementNS(svgNS, 'text');
-        tempText.setAttribute('class', 'forecast-chart-axis-label');
-        tempText.textContent = 'x';
+        const svgNS = "http://www.w3.org/2000/svg";
+        const tempSvg = document.createElementNS(svgNS, "svg");
+        tempSvg.style.position = "absolute";
+        tempSvg.style.left = "-9999px";
+        const tempText = document.createElementNS(svgNS, "text");
+        tempText.setAttribute("class", "forecast-chart-axis-label");
+        tempText.textContent = "x";
         tempSvg.appendChild(tempText);
         document.body.appendChild(tempSvg);
-        axisLabelColor = getComputedStyle(tempText).getPropertyValue('fill') || '';
+        axisLabelColor = getComputedStyle(tempText).getPropertyValue("fill") || "";
         document.body.removeChild(tempSvg);
-      } catch (e) {
-        axisLabelColor = '';
+      } catch (error) {
+        axisLabelColor = "";
       }
 
       const timeColor = (axisLabelColor || cssMuted || defaultTimeColor).trim();
-      const tempColor = (rootStyles.getPropertyValue('--accent') || '').trim() || '#ffd684';
-      const timeStroke = isDark ? 'rgba(0,0,0,0.6)' : 'rgba(255,255,255,0.6)';
 
       labelItems.forEach((item) => {
         if (!item.ms) return;
-        const x = sc.getPixelForValue(item.ms);
+
+        const x = xScale.getPixelForValue(item.ms);
         if (x < chartArea.left - 40 || x > chartArea.right + 40) return;
 
-        // compute time text (skip drawing the time label for hour 23)
-        let timeText = '';
+        let timeText = "";
         try {
-          timeText = typeof luxon !== 'undefined' ? luxon.DateTime.fromMillis(item.ms).toFormat('HH:mm') : new Date(item.ms).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-        } catch (e) {
-          timeText = new Date(item.ms).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+          timeText =
+            typeof luxon !== "undefined"
+              ? luxon.DateTime.fromMillis(item.ms).toFormat("HH:mm")
+              : new Date(item.ms).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+        } catch (error) {
+          timeText = new Date(item.ms).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
         }
 
-        const hour = new Date(item.ms).getHours();
-        if (hour !== 23) {
-          // draw time text with subtle stroke for contrast
+        const pointDate = new Date(item.ms);
+        const hour = pointDate.getHours();
+        const minutes = pointDate.getMinutes();
+        const labelHourStep = getHourlyLabelHourStep();
+        const shouldRenderLabel = minutes === 0 && hour % labelHourStep === 0;
+
+        if (shouldRenderLabel) {
           ctx2.font = timeFont;
           ctx2.fillStyle = timeColor;
           ctx2.lineWidth = 2;
@@ -124,9 +155,7 @@ export function initForecastDayChart(day, unit = "celsius") {
           ctx2.lineWidth = 1;
         }
 
-        // icon (centered) and temperature (no background)
-        // skip icon/temperature labels for hour 23 to avoid clutter
-        if (hour !== 23) {
+        if (shouldRenderLabel) {
           if (item.img && item.img.complete) {
             const size = 28;
             ctx2.drawImage(item.img, Math.round(x - size / 2), Math.round(iconY - size / 2), size, size);
@@ -134,37 +163,39 @@ export function initForecastDayChart(day, unit = "celsius") {
             item.img.onload = () => chart.draw();
           }
 
-          const tLabel = formatDetailTemperature(item.temperature, unit);
+          const temperatureLabel = formatDetailTemperature(item.temperature, unit);
           ctx2.font = tempFont;
           ctx2.fillStyle = tempColor;
-          ctx2.fillText(tLabel, x, tempY);
+          ctx2.fillText(temperatureLabel, x, tempY);
         }
       });
 
       ctx2.restore();
-    }
+    },
   };
 
   const config = {
-    type: 'line',
-    data: { datasets: [
-      {
-        label: `Temperatura (${unit === 'celsius' ? '°C' : '°F'})`,
-        data: tempData,
-        borderColor: 'rgba(246, 246, 242, 0.96)',
-        backgroundColor: 'rgba(255, 213, 138, 0.24)',
-        borderWidth: 0,
-        tension: 0.4,
-        pointRadius: 0,
-        pointHoverRadius: (ctx) => (ctx.raw && ctx.raw.__meta && ctx.raw.__meta.is_now ? 0 : 6),
-        hitRadius: (ctx) => (ctx.raw && ctx.raw.__meta && ctx.raw.__meta.is_now ? 0 : 8),
-        fill: true,
-      }
-    ] },
+    type: "line",
+    data: {
+      datasets: [
+        {
+          label: `Temperatura (${unit === "celsius" ? "°C" : "°F"})`,
+          data: tempData,
+          borderColor: "rgba(246, 246, 242, 0.96)",
+          backgroundColor: "rgba(255, 213, 138, 0.24)",
+          borderWidth: 3,
+          tension: 0.4,
+          pointRadius: 0,
+          pointHoverRadius: (context) => (context.raw?.__meta?.is_now ? 0 : 6),
+          hitRadius: (context) => (context.raw?.__meta?.is_now ? 0 : 8),
+          fill: true,
+        },
+      ],
+    },
     options: {
       responsive: true,
       maintainAspectRatio: false,
-      interaction: { mode: 'nearest', intersect: false },
+      interaction: { mode: "nearest", intersect: false },
       layout: { padding: { top: 150 } },
       plugins: {
         gradientFillPlugin: {
@@ -178,44 +209,138 @@ export function initForecastDayChart(day, unit = "celsius") {
           enabled: true,
           filter(context) {
             const raw = context.raw || {};
-            const tlabel = String((raw.__meta && raw.__meta.time_label) || "").toLowerCase();
-            return !(raw.__meta?.is_now || tlabel === "adesso");
+            const timeLabel = String((raw.__meta && raw.__meta.time_label) || "").toLowerCase();
+            return !(raw.__meta?.is_now || timeLabel === "adesso");
           },
           callbacks: {
             title(items) {
               if (!items.length) return "";
+
               const ms = items[0].parsed.x;
               try {
-                return luxon.DateTime.fromMillis(ms).toFormat('HH:mm dd/LL/yyyy');
-              } catch (e) {
+                return luxon.DateTime.fromMillis(ms).toFormat("HH:mm dd/LL/yyyy");
+              } catch (error) {
                 return new Date(ms).toLocaleString();
               }
             },
             label(item) {
-              const y = item.parsed.y;
-              return `${item.dataset.label}: ${y}°`;
-            }
-          }
+              const rawTemperature = item.raw?.__meta?.temperature;
+              return `${item.dataset.label}: ${formatDetailTemperature(rawTemperature ?? item.parsed.y, unit)}`;
+            },
+          },
         },
       },
       scales: {
         x: {
-          type: 'time',
-          position: 'top',
-          time: { unit: 'hour', displayFormats: { hour: 'HH:mm' } },
+          type: "time",
+          position: "top",
+          time: { unit: "hour", displayFormats: { hour: "HH:mm" } },
           title: { display: false },
           grid: { display: false, drawBorder: false },
-          ticks: { display: false }
+          ticks: { display: false },
         },
-        y: { beginAtZero: false, title: { display: false }, ticks: { callback: (v) => `${v}°` }, grid: { display: false } }
-      }
-    }
-    ,
-    plugins: [ hourlyLabelsPlugin, gradientFillPlugin ]
+        y: {
+          beginAtZero: false,
+          bounds: "ticks",
+          min: yScaleConfig.min,
+          max: yScaleConfig.max,
+          title: { display: false },
+          ticks: {
+            callback: (value) => formatChartAxisTemperature(value, unit),
+            maxTicksLimit: yScaleConfig.maxTicksLimit,
+            stepSize: yScaleConfig.stepSize,
+          },
+          grid: { display: false },
+        },
+      },
+    },
+    plugins: [hourlyLabelsPlugin, gradientFillPlugin],
   };
 
-  // eslint-disable-next-line no-undef
   const chart = new Chart(ctx, config);
   canvas._chartInstance = chart;
   return chart;
+}
+
+function getChartTemperatureScale(values, unit = "celsius") {
+  const basePadding = unit === "fahrenheit" ? 4 : 2;
+  const maxTicksLimit = 6;
+
+  if (!values.length) {
+    return {
+      min: unit === "fahrenheit" ? 28 : -2,
+      max: unit === "fahrenheit" ? 44 : 6,
+      maxTicksLimit,
+      stepSize: unit === "fahrenheit" ? 4 : 2,
+    };
+  }
+
+  const minValue = Math.min(...values);
+  const maxValue = Math.max(...values);
+  const dynamicPadding = Math.max(basePadding, Math.ceil((maxValue - minValue) * 0.2));
+
+  let min = Math.floor(minValue - dynamicPadding);
+  let max = Math.ceil(maxValue + dynamicPadding);
+
+  if (min === max) {
+    min -= basePadding;
+    max += basePadding;
+  }
+
+  const stepSize = getNiceTemperatureStep((max - min) / (maxTicksLimit - 1));
+  min = Math.floor(min / stepSize) * stepSize;
+  max = Math.ceil(max / stepSize) * stepSize;
+
+  if (min === max) {
+    max += stepSize;
+  }
+
+  return {
+    min,
+    max,
+    maxTicksLimit,
+    stepSize,
+  };
+}
+
+function getNiceTemperatureStep(targetStep) {
+  const safeTarget = Math.max(targetStep, 1);
+  const magnitude = 10 ** Math.floor(Math.log10(safeTarget));
+  const normalized = safeTarget / magnitude;
+
+  if (normalized <= 1) {
+    return magnitude;
+  }
+
+  if (normalized <= 2) {
+    return 2 * magnitude;
+  }
+
+  if (normalized <= 3) {
+    return 3 * magnitude;
+  }
+
+  if (normalized <= 5) {
+    return 5 * magnitude;
+  }
+
+  return 10 * magnitude;
+}
+
+function formatChartAxisTemperature(value, unit = "celsius") {
+  const roundedValue = Math.round(Number(value));
+
+  if (!Number.isFinite(roundedValue)) {
+    return "";
+  }
+
+  return `${roundedValue}${shouldShowTemperatureDegree(unit) ? "°" : getTemperatureUnitCharacter(unit)}`;
+}
+
+function getHourlyLabelHourStep() {
+  if (typeof window === "undefined") {
+    return 2;
+  }
+
+  return window.innerWidth <= 640 ? 4 : 2;
 }

@@ -32,13 +32,14 @@ export const gradientFillPlugin = {
       }
 
       const resolvedOptions = resolveGradientOptions(pluginOptions, dataset);
-      const signature = createGradientSignature(chartArea, values, resolvedOptions);
+      const pointOffsets = getDatasetPointOffsets(chart, datasetIndex, chartArea);
+      const signature = createGradientSignature(chartArea, values, pointOffsets, resolvedOptions);
       const cachedGradient = cache.get(datasetIndex);
 
       if (!cachedGradient || cachedGradient.signature !== signature) {
         cache.set(datasetIndex, {
           signature,
-          gradient: buildTemperatureGradient(chart, values, yScale, chartArea, resolvedOptions),
+          gradient: buildTemperatureGradient(chart, values, pointOffsets, chartArea, resolvedOptions),
         });
       }
 
@@ -84,16 +85,17 @@ function applyGradientToDataset(chart, datasetIndex, dataset, gradient) {
   }
 }
 
-function buildTemperatureGradient(chart, values, yScale, chartArea, options) {
-  const gradient = chart.ctx.createLinearGradient(0, chartArea.top, 0, chartArea.bottom);
+function buildTemperatureGradient(chart, values, pointOffsets, chartArea, options) {
+  const gradient = chart.ctx.createLinearGradient(chartArea.left, 0, chartArea.right, 0);
   const { minTemp, maxTemp } = getTemperatureDomain(values);
+  const offsets = pointOffsets.length === values.length ? pointOffsets : getFallbackOffsets(values.length);
   const colorStops = [
-    { offset: 0, color: resolveTemperatureColor(maxTemp, minTemp, maxTemp, options) },
-    ...values.map((value) => ({
-      offset: getOffsetForValue(yScale.getPixelForValue(value), chartArea.top, chartArea.bottom),
+    { offset: 0, color: resolveTemperatureColor(values[0] ?? minTemp, minTemp, maxTemp, options) },
+    ...values.map((value, index) => ({
+      offset: offsets[index],
       color: resolveTemperatureColor(value, minTemp, maxTemp, options),
     })),
-    { offset: 1, color: resolveTemperatureColor(minTemp, minTemp, maxTemp, options) },
+    { offset: 1, color: resolveTemperatureColor(values.at(-1) ?? maxTemp, minTemp, maxTemp, options) },
   ];
 
   normalizeColorStops(colorStops).forEach(({ offset, color }) => {
@@ -123,7 +125,7 @@ function normalizePalette(palette) {
   return normalized.length >= 2 ? normalized : DEFAULT_TEMPERATURE_PALETTE;
 }
 
-function createGradientSignature(chartArea, values, options) {
+function createGradientSignature(chartArea, values, pointOffsets, options) {
   const paletteKey = options.palette.map((rgb) => rgb.join(",")).join("|");
 
   return [
@@ -132,6 +134,7 @@ function createGradientSignature(chartArea, values, options) {
     chartArea.left,
     chartArea.right,
     values.map((value) => Number(value).toFixed(3)).join("|"),
+    pointOffsets.map((offset) => Number(offset).toFixed(4)).join("|"),
     paletteKey,
     options.alpha,
     options.useChroma,
@@ -162,12 +165,31 @@ function getTemperatureDomain(values) {
   };
 }
 
-function getOffsetForValue(pixelY, top, bottom) {
-  if (bottom <= top) {
+function getDatasetPointOffsets(chart, datasetIndex, chartArea) {
+  const meta = typeof chart.getDatasetMeta === "function" ? chart.getDatasetMeta(datasetIndex) : null;
+  const points = Array.isArray(meta?.data) ? meta.data : [];
+
+  if (!points.length) {
+    return [];
+  }
+
+  return points.map((point) => getOffsetForPixel(point?.x, chartArea.left, chartArea.right));
+}
+
+function getOffsetForPixel(pixelValue, start, end) {
+  if (!Number.isFinite(pixelValue) || end <= start) {
     return 0;
   }
 
-  return clamp((pixelY - top) / (bottom - top), 0, 1);
+  return clamp((pixelValue - start) / (end - start), 0, 1);
+}
+
+function getFallbackOffsets(length) {
+  if (length <= 1) {
+    return [0.5];
+  }
+
+  return Array.from({ length }, (_, index) => index / (length - 1));
 }
 
 function resolveTemperatureColor(value, minTemp, maxTemp, options) {
