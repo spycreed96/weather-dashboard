@@ -2,7 +2,7 @@ from pydantic import BaseModel, Field
 
 
 class HourlyForecastPoint(BaseModel):
-    time_label: str
+    time_label: str = Field(min_length=1)
     temperature: float
     icon: str
     description: str
@@ -26,20 +26,20 @@ class WeatherResponse(BaseModel):
     country_name: str
     continent: str
     state: str
-    latitude: float
-    longitude: float
+    latitude: float = Field(ge=-90, le=90)
+    longitude: float = Field(ge=-180, le=180)
     temperature: float
     description: str
-    humidity: int
-    wind_speed: float
+    humidity: int = Field(ge=0, le=100)
+    wind_speed: float = Field(ge=0)
     wind_gust: float | None = None
     wind_direction: int | None = None
     icon: str
-    cloudiness: int
+    cloudiness: int = Field(ge=0, le=100)
     feels_like: float
     dew_point: float
-    visibility: int
-    pressure: int
+    visibility: int = Field(ge=0)
+    pressure: int = Field(ge=0)
     pressure_tomorrow: int | None = None
     uv_index: float | None = None
     uv_index_tomorrow: float | None = None
@@ -62,5 +62,11 @@ class WeatherResponse(BaseModel):
     air_quality_primary_pollutant: str | None = None
     air_quality_primary_pollutant_value: float | None = None
     air_quality_primary_pollutant_unit: str | None = None
-    precipitation_next_24h: float
+    precipitation_next_24h: float = Field(ge=0)
     forecast_days: list[ForecastDay] = Field(default_factory=list)
+
+
+class CitySuggestion(BaseModel):
+    name: str = Field(min_length=1)
+    region_country: str = ""
+    full_name: str = Field(min_length=1)

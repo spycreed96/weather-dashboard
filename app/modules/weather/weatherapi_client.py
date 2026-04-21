@@ -1,3 +1,4 @@
+import logging
 from datetime import datetime, timedelta
 from math import acos, pi
 from urllib.parse import quote
@@ -39,6 +40,7 @@ MOON_PHASE_LABELS = {
 
 DEFAULT_LOCATION_COUNTRY = "Italy"
 SYNODIC_MONTH_DAYS = 29.530588853
+logger = logging.getLogger(__name__)
 
 PM25_BREAKPOINTS = (
     (0.0, 12.0, 0, 50),
@@ -385,6 +387,7 @@ async def fetch_weatherapi_forecast(client: httpx.AsyncClient, query: str) -> di
     try:
         italy_biased_payload = await fetch_weatherapi_forecast_raw(client, build_country_biased_query(query))
     except Exception:
+        logger.debug("Italy-biased WeatherAPI forecast lookup failed for %r", query, exc_info=True)
         return forecast_payload
 
     if italy_biased_payload.get("location", {}).get("country") == DEFAULT_LOCATION_COUNTRY:
@@ -415,6 +418,7 @@ async def get_weatherapi_city_suggestions(client: httpx.AsyncClient, query: str,
         try:
             italy_biased_results = await fetch_weatherapi_search_results(client, build_country_biased_query(query))
         except Exception:
+            logger.debug("Italy-biased WeatherAPI search lookup failed for %r", query, exc_info=True)
             italy_biased_results = []
 
     suggestions: list[dict] = []
@@ -542,6 +546,7 @@ async def get_yesterday_forecast_day(
         response.raise_for_status()
         payload = response.json()
     except Exception:
+        logger.debug("WeatherAPI history lookup failed for %r", query, exc_info=True)
         return None
 
     forecast_day = (payload.get("forecast", {}).get("forecastday") or [None])[0]
@@ -679,6 +684,7 @@ async def get_country_metadata(client: httpx.AsyncClient, country_name: str) -> 
             continent = country_data.get("region", continent)
             return country_code, country_name, continent
         except Exception:
+            logger.debug("Country metadata lookup failed for %r via %s", country_name, endpoint, exc_info=True)
             continue
 
     return country_code, country_name, continent

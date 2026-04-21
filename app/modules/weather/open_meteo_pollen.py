@@ -1,4 +1,8 @@
+import logging
+
 import httpx
+
+logger = logging.getLogger(__name__)
 
 POLLEN_LABELS = {
     "Hazel": "Nocciolo",
@@ -120,4 +124,5 @@ async def get_pollen_metrics(
         payload = response.json()
         return build_pollen_metrics(payload.get("current"))
     except Exception:
+        logger.debug("Open-Meteo pollen lookup failed for coordinates %s,%s", lat, lon, exc_info=True)
         return initial_metrics
