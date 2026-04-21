@@ -1,6 +1,8 @@
 .search-header {
   --header-action-size: 60px;
-  background: rgba(20, 20, 24, 0.92);
+  background: var(--surface-strong);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  box-shadow: 0 18px 40px rgba(15, 21, 49, 0.24);
   margin-bottom: 12px;
   min-height: var(--header-action-size);
   overflow: visible;
@@ -280,7 +282,7 @@
 .history-unit-toggle {
   align-items: center;
   backdrop-filter: blur(8px);
-  background: var(--card);
+  background: var(--surface-soft);
   border: 1px solid var(--card-border);
   border-radius: 12px;
   color: var(--text);
@@ -306,8 +308,8 @@
 }
 
 .temperature-settings-dropdown {
-  background: #2b2b2b;
-  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: var(--surface-strong);
+  border: 1px solid rgba(255, 255, 255, 0.1);
   border-radius: 14px;
   box-shadow: 0 18px 32px rgba(0, 0, 0, 0.28);
   color: #ffffff;
@@ -404,6 +406,7 @@
   font-weight: 600;
   letter-spacing: 0.01em;
   margin: 0 0 16px;
+  text-shadow: 0 1px 0 rgba(255, 255, 255, 0.12);
 }
 
 .dashboard-content {
@@ -428,6 +431,24 @@
   padding: 14px;
   transition: var(--transition);
   width: 100%;
+}
+
+.weather-card,
+.map-card {
+  background: var(--surface-panel);
+  overflow: hidden;
+  position: relative;
+}
+
+.weather-card::before,
+.map-card::before {
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.18), transparent);
+  content: "";
+  inset: 0 0 auto;
+  height: 92px;
+  opacity: 0.7;
+  pointer-events: none;
+  position: absolute;
 }
 
 .weather-card,
@@ -2080,7 +2101,7 @@
 
 .forecast-chart-tooltip-inner {
   align-items: center;
-  background: var(--card);
+  background: var(--surface-panel);
   border: 1px solid var(--card-border);
   border-radius: 12px;
   color: var(--text);
@@ -2300,8 +2321,10 @@
 }
 
 .detail-item {
-  background: rgba(255, 255, 255, 0.08);
+  background: var(--surface-soft);
+  border: 1px solid rgba(255, 255, 255, 0.12);
   border-radius: 12px;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.08);
   padding: 12px;
   text-align: center;
 }
@@ -2373,7 +2396,9 @@
 }
 
 .city-map {
-  background: linear-gradient(160deg, rgba(255, 255, 255, 0.12), rgba(0, 0, 0, 0.08));
+  background:
+    radial-gradient(circle at top right, rgba(132, 188, 255, 0.18), transparent 34%),
+    linear-gradient(160deg, rgba(255, 255, 255, 0.16), rgba(28, 39, 79, 0.08));
   border: 1px solid var(--card-border);
   border-radius: 18px;
   height: 100%;
@@ -2395,7 +2420,7 @@
 
 .weather-history-item {
   align-items: center;
-  background: var(--card);
+  background: var(--surface-soft);
   border: 1px solid var(--card-border);
   border-radius: 16px;
   cursor: pointer;
@@ -2410,8 +2435,10 @@
 }
 
 .weather-history-item:hover {
-  background: var(--card-border);
-  box-shadow: 0 8px 16px rgba(0, 0, 0, 0.15);
+  background:
+    radial-gradient(circle at top right, rgba(125, 189, 255, 0.18), transparent 38%),
+    linear-gradient(180deg, rgba(255, 255, 255, 0.18), rgba(255, 255, 255, 0.08));
+  box-shadow: 0 12px 24px rgba(22, 34, 72, 0.18);
 }
 
 .history-menu {
@@ -2434,7 +2461,7 @@
 }
 
 .history-dropdown {
-  background: var(--card);
+  background: var(--surface-panel);
   border: 1px solid var(--card-border);
   border-radius: 12px;
   box-shadow: 0 12px 24px rgba(0, 0, 0, 0.14);

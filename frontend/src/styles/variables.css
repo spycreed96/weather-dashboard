@@ -1,21 +1,50 @@
 :root {
-  --bg: linear-gradient(135deg, #e3f2fd, #bbdefb);
-  --card: rgba(255, 255, 255, 0.9);
-  --card-border: rgba(0, 0, 0, 0.1);
-  --text: #333333;
-  --muted: rgba(0, 0, 0, 0.6);
-  --shadow: 0 22px 60px rgba(0, 0, 0, 0.18);
+  --bg:
+    radial-gradient(circle at 14% 18%, rgba(127, 182, 255, 0.34), transparent 24%),
+    radial-gradient(circle at 86% 14%, rgba(255, 196, 118, 0.26), transparent 22%),
+    linear-gradient(180deg, #eff5ff 0%, #dce7ff 44%, #eef2ff 100%);
+  --card: linear-gradient(180deg, rgba(255, 255, 255, 0.84), rgba(231, 239, 255, 0.76));
+  --card-border: rgba(107, 134, 204, 0.16);
+  --text: #1e2744;
+  --muted: rgba(37, 49, 84, 0.68);
+  --shadow: 0 24px 60px rgba(26, 40, 86, 0.16);
   --transition: all 0.3s ease;
   --accent: #ffc857;
   --accent-text: #1a1a1a;
+  --surface-strong:
+    radial-gradient(circle at top left, rgba(255, 185, 93, 0.14), transparent 26%),
+    linear-gradient(180deg, rgba(63, 73, 128, 0.96), rgba(36, 45, 86, 0.98));
+  --surface-soft:
+    radial-gradient(circle at top right, rgba(123, 187, 255, 0.16), transparent 34%),
+    linear-gradient(180deg, rgba(255, 255, 255, 0.2), rgba(221, 232, 255, 0.08));
+  --surface-panel:
+    radial-gradient(circle at top right, rgba(124, 218, 255, 0.14), transparent 34%),
+    linear-gradient(180deg, rgba(255, 255, 255, 0.78), rgba(228, 236, 255, 0.72));
+  --surface-overlay: rgba(255, 255, 255, 0.08);
+  --surface-overlay-strong: rgba(255, 255, 255, 0.14);
 }
 
 .dark {
-  --bg: linear-gradient(135deg, #1d3a7c, #5b87d8);
-  --card: rgba(255, 255, 255, 0.14);
-  --card-border: rgba(255, 255, 255, 0.22);
+  --bg:
+    radial-gradient(circle at 14% 18%, rgba(91, 143, 255, 0.28), transparent 24%),
+    radial-gradient(circle at 84% 14%, rgba(255, 182, 88, 0.16), transparent 22%),
+    linear-gradient(180deg, #1c2446 0%, #17203d 42%, #11182f 100%);
+  --card: linear-gradient(180deg, rgba(49, 58, 104, 0.78), rgba(31, 40, 76, 0.84));
+  --card-border: rgba(147, 181, 255, 0.16);
   --text: #ffffff;
-  --muted: rgba(255, 255, 255, 0.75);
+  --muted: rgba(232, 238, 255, 0.74);
   --accent: #ffc857;
   --accent-text: #1a1a1a;
+  --shadow: 0 26px 64px rgba(7, 12, 32, 0.42);
+  --surface-strong:
+    radial-gradient(circle at top left, rgba(255, 182, 94, 0.12), transparent 26%),
+    linear-gradient(180deg, rgba(56, 62, 114, 0.96), rgba(31, 39, 77, 0.98));
+  --surface-soft:
+    radial-gradient(circle at top right, rgba(123, 187, 255, 0.14), transparent 34%),
+    linear-gradient(180deg, rgba(255, 255, 255, 0.12), rgba(255, 255, 255, 0.04));
+  --surface-panel:
+    radial-gradient(circle at top right, rgba(124, 218, 255, 0.16), transparent 34%),
+    linear-gradient(180deg, rgba(55, 64, 116, 0.9), rgba(34, 43, 80, 0.94));
+  --surface-overlay: rgba(255, 255, 255, 0.08);
+  --surface-overlay-strong: rgba(255, 255, 255, 0.14);
 }
