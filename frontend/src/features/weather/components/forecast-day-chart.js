@@ -1,3 +1,4 @@
+import { DEFAULT_TEMPERATURE_PALETTE, gradientFillPlugin } from "../utils/chart-gradient.js";
 import { getWeatherIconUrl, formatDetailTemperature } from "../utils/weather-formatters.js";
 
 export function initForecastDayChart(day, unit = "celsius") {
@@ -150,9 +151,9 @@ export function initForecastDayChart(day, unit = "celsius") {
       {
         label: `Temperatura (${unit === 'celsius' ? '°C' : '°F'})`,
         data: tempData,
-        borderColor: 'rgba(255,99,132,1)',
-        backgroundColor: 'rgba(255,99,132,0.12)',
-        borderWidth: 3,
+        borderColor: 'rgba(246, 246, 242, 0.96)',
+        backgroundColor: 'rgba(255, 213, 138, 0.24)',
+        borderWidth: 0,
         tension: 0.4,
         pointRadius: 0,
         pointHoverRadius: (ctx) => (ctx.raw && ctx.raw.__meta && ctx.raw.__meta.is_now ? 0 : 6),
@@ -166,6 +167,11 @@ export function initForecastDayChart(day, unit = "celsius") {
       interaction: { mode: 'nearest', intersect: false },
       layout: { padding: { top: 150 } },
       plugins: {
+        gradientFillPlugin: {
+          alpha: 0.34,
+          palette: DEFAULT_TEMPERATURE_PALETTE,
+          useChroma: typeof window !== "undefined" && typeof window.chroma === "function",
+        },
         title: { display: false },
         legend: { display: false },
         tooltip: {
@@ -205,7 +211,7 @@ export function initForecastDayChart(day, unit = "celsius") {
       }
     }
     ,
-    plugins: [ hourlyLabelsPlugin ]
+    plugins: [ hourlyLabelsPlugin, gradientFillPlugin ]
   };
 
   // eslint-disable-next-line no-undef
