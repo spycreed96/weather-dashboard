@@ -183,7 +183,7 @@ export function initForecastDayChart(day, unit = "celsius") {
           data: tempData,
           borderColor: "rgba(246, 246, 242, 0.96)",
           backgroundColor: "rgba(255, 213, 138, 0.24)",
-          borderWidth: 3,
+          borderWidth: 0,
           tension: 0.4,
           pointRadius: 0,
           pointHoverRadius: (context) => (context.raw?.__meta?.is_now ? 0 : 6),
