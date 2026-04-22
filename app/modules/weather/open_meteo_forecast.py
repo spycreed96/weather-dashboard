@@ -75,6 +75,24 @@ def normalize_probability(value) -> int | None:
         return None
 
 
+def normalize_direction(value) -> int | None:
+    if value is None or value == "":
+        return None
+
+    try:
+        return max(0, min(360, round(float(value))))
+    except (TypeError, ValueError):
+        return None
+
+
+def get_wind_direction_label(degrees: int | None) -> str | None:
+    if degrees is None:
+        return None
+
+    labels = ("N", "NNE", "NE", "ENE", "E", "ESE", "SE", "SSE", "S", "SSO", "SO", "OSO", "O", "ONO", "NO", "NNO")
+    return labels[round((degrees % 360) / 22.5) % len(labels)]
+
+
 def classify_open_meteo_precipitation_type(weather_code: int | None, precipitation_mm: float) -> str:
     if precipitation_mm <= 0:
         return "none"
@@ -94,8 +112,8 @@ async def fetch_open_meteo_forecast(client: httpx.AsyncClient, lat: float, lon: 
         params={
             "latitude": lat,
             "longitude": lon,
-            "daily": "weather_code,temperature_2m_max,temperature_2m_min,precipitation_sum,precipitation_probability_max",
-            "hourly": "temperature_2m,apparent_temperature,precipitation,precipitation_probability,weather_code",
+            "daily": "weather_code,temperature_2m_max,temperature_2m_min,precipitation_sum,precipitation_probability_max,wind_speed_10m_max,wind_gusts_10m_max,wind_direction_10m_dominant",
+            "hourly": "temperature_2m,apparent_temperature,precipitation,precipitation_probability,wind_speed_10m,wind_gusts_10m,wind_direction_10m,weather_code",
             "timezone": timezone or "auto",
             "forecast_days": MAX_FORECAST_DAYS,
         },
@@ -123,6 +141,9 @@ def build_open_meteo_forecast_days(
         apparent_temperatures = hourly_payload.get("apparent_temperature", [])
         precipitations = hourly_payload.get("precipitation", [])
         precipitation_probabilities = hourly_payload.get("precipitation_probability", [])
+        wind_speeds = hourly_payload.get("wind_speed_10m", [])
+        wind_gusts = hourly_payload.get("wind_gusts_10m", [])
+        wind_directions = hourly_payload.get("wind_direction_10m", [])
         weather_codes = hourly_payload.get("weather_code", [])
         temperature = temperatures[index] if index < len(temperatures) else None
         apparent_temperature = apparent_temperatures[index] if index < len(apparent_temperatures) else None
@@ -130,6 +151,9 @@ def build_open_meteo_forecast_days(
         precipitation_probability = normalize_probability(
             precipitation_probabilities[index] if index < len(precipitation_probabilities) else None
         )
+        wind_speed = wind_speeds[index] if index < len(wind_speeds) else None
+        wind_gust = wind_gusts[index] if index < len(wind_gusts) else None
+        wind_direction = normalize_direction(wind_directions[index] if index < len(wind_directions) else None)
         weather_code = weather_codes[index] if index < len(weather_codes) else None
         icon, description = get_open_meteo_icon_and_description(weather_code, local_dt.hour)
         date_key = local_dt.date().isoformat()
@@ -145,6 +169,10 @@ def build_open_meteo_forecast_days(
                 "precipitation_mm": precipitation_mm,
                 "precipitation_probability": precipitation_probability,
                 "precipitation_type": classify_open_meteo_precipitation_type(weather_code, precipitation_mm),
+                "wind_speed_kph": round(float(wind_speed or 0), 1),
+                "wind_gust_kph": round(float(wind_gust), 1) if wind_gust is not None else None,
+                "wind_direction": wind_direction,
+                "wind_direction_label": get_wind_direction_label(wind_direction),
                 "icon": icon,
                 "description": description,
             }
@@ -155,6 +183,9 @@ def build_open_meteo_forecast_days(
     max_temperatures = daily_payload.get("temperature_2m_max", [])
     precipitation_sums = daily_payload.get("precipitation_sum", [])
     precipitation_probabilities = daily_payload.get("precipitation_probability_max", [])
+    daily_wind_speeds = daily_payload.get("wind_speed_10m_max", [])
+    daily_wind_gusts = daily_payload.get("wind_gusts_10m_max", [])
+    daily_wind_directions = daily_payload.get("wind_direction_10m_dominant", [])
     weather_codes = daily_payload.get("weather_code", [])
 
     for index, date_value in enumerate(daily_times):
@@ -180,6 +211,11 @@ def build_open_meteo_forecast_days(
         precipitation_probability = normalize_probability(
             precipitation_probabilities[index] if index < len(precipitation_probabilities) else None
         )
+        wind_speed = daily_wind_speeds[index] if index < len(daily_wind_speeds) else closest_entry.get("wind_speed_kph", 0)
+        wind_gust = daily_wind_gusts[index] if index < len(daily_wind_gusts) else max((entry.get("wind_gust_kph") or 0) for entry in day_entries)
+        wind_direction = normalize_direction(
+            daily_wind_directions[index] if index < len(daily_wind_directions) else closest_entry.get("wind_direction")
+        )
 
         forecast_days.append(
             build_forecast_day(
@@ -192,6 +228,11 @@ def build_open_meteo_forecast_days(
                 build_hourly_forecast_points(display_entries),
                 precipitation_total_mm=precipitation_total_mm,
                 precipitation_probability=precipitation_probability,
+                wind_speed_kph=wind_speed,
+                wind_current_speed_kph=closest_entry.get("wind_speed_kph"),
+                wind_gust_kph=wind_gust,
+                wind_direction=wind_direction,
+                wind_direction_label=get_wind_direction_label(wind_direction),
             )
         )
 

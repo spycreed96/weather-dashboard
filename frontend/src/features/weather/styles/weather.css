@@ -18,6 +18,7 @@
   min-height: var(--header-action-size);
   min-width: 0;
   padding-left: 16px;
+  background-color: rgb(24, 24, 24);
 }
 
 .search-header-title {
@@ -1880,6 +1881,61 @@
   width: 100%;
 }
 
+.forecast-day-card--wind {
+  min-height: 118px;
+  overflow: hidden;
+}
+
+.forecast-day-body--wind {
+  align-items: flex-end;
+  justify-content: space-between;
+  min-height: 62px;
+}
+
+.forecast-day-wind {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  min-width: 0;
+}
+
+.forecast-day-wind-speed {
+  color: #ffffff;
+  font-size: 1.32rem;
+  font-weight: 800;
+  line-height: 1;
+}
+
+.forecast-day-wind-speed span,
+.forecast-day-wind-current {
+  color: rgba(235, 238, 255, 0.82);
+  font-size: 0.94rem;
+  font-weight: 700;
+}
+
+.forecast-day-wind-gust {
+  color: #ffffff;
+  font-size: 0.76rem;
+  font-weight: 800;
+}
+
+.forecast-day-wind-meter {
+  align-items: flex-end;
+  background: rgba(255, 255, 255, 0.08);
+  border-radius: 999px;
+  display: flex;
+  height: 66px;
+  overflow: hidden;
+  width: 20px;
+}
+
+.forecast-day-wind-meter span {
+  background: linear-gradient(180deg, #89caff 0%, #69aef1 100%);
+  border-radius: inherit;
+  display: block;
+  width: 100%;
+}
+
 .forecast-empty {
   color: rgba(235, 238, 255, 0.68);
   font-size: 0.95rem;
@@ -2473,6 +2529,122 @@
   width: 18px;
 }
 
+.forecast-chart-shell--wind {
+  gap: 12px;
+}
+
+.forecast-wind-header {
+  align-items: center;
+  display: flex;
+  gap: 16px;
+  justify-content: space-between;
+  padding: 0 18px;
+}
+
+.forecast-wind-title {
+  color: #ffffff;
+  font-size: 1rem;
+  font-weight: 800;
+  margin: 0;
+}
+
+.forecast-wind-gust-toggle {
+  align-items: center;
+  appearance: none;
+  background: transparent;
+  border: 0;
+  color: rgba(235, 238, 255, 0.82);
+  cursor: pointer;
+  display: inline-flex;
+  font-size: 0.86rem;
+  font-weight: 700;
+  gap: 10px;
+  min-height: 28px;
+  padding: 0;
+}
+
+.forecast-wind-toggle-track {
+  align-items: center;
+  background: #1d8ad7;
+  border-radius: 999px;
+  display: inline-flex;
+  height: 22px;
+  padding: 0 4px;
+  transition: background 0.22s ease;
+  width: 40px;
+}
+
+.forecast-wind-toggle-thumb {
+  background: #ffffff;
+  border-radius: 50%;
+  display: inline-flex;
+  height: 14px;
+  transform: translateX(18px);
+  transition: transform 0.22s ease;
+  width: 14px;
+}
+
+.forecast-wind-gust-toggle:not(.is-active) .forecast-wind-toggle-track {
+  background: rgba(255, 255, 255, 0.18);
+}
+
+.forecast-wind-gust-toggle:not(.is-active) .forecast-wind-toggle-thumb {
+  transform: translateX(0);
+}
+
+.forecast-wind-gust-toggle:focus-visible {
+  outline: 2px solid rgba(122, 190, 255, 0.86);
+  outline-offset: 3px;
+}
+
+.forecast-wind-stage {
+  min-height: 330px;
+}
+
+.forecast-wind-canvas-embed {
+  height: 330px;
+  padding: 0 18px;
+}
+
+.forecast-wind-canvas-embed canvas {
+  display: block;
+  height: 100% !important;
+  width: 100% !important;
+}
+
+.forecast-wind-legend {
+  align-items: center;
+  color: rgba(235, 238, 255, 0.82);
+  display: flex;
+  flex-wrap: wrap;
+  gap: 18px;
+  padding: 0 18px;
+}
+
+.forecast-wind-legend-item {
+  align-items: center;
+  display: inline-flex;
+  font-size: 0.88rem;
+  font-weight: 600;
+  gap: 8px;
+}
+
+.forecast-wind-legend-dot {
+  background: rgba(81, 136, 207, 0.86);
+  border-radius: 50%;
+  display: inline-flex;
+  height: 12px;
+  width: 12px;
+}
+
+.forecast-wind-legend-line {
+  background: #7abeff;
+  border-radius: 999px;
+  display: inline-flex;
+  height: 2px;
+  width: 18px;
+}
+
 /* forecast panel related styles removed */
 
 .weather-header {
@@ -2874,6 +3046,7 @@
     grid-template-columns: repeat(2, var(--header-action-size)) minmax(0, 1fr);
     margin-left: 0;
     width: 100%;
+    background-color: rgb(24, 24, 24);
   }
 
   .search-form {
@@ -3123,6 +3296,11 @@
 
   .forecast-precipitation-controls {
     justify-content: flex-start;
+  }
+
+  .forecast-wind-header {
+    align-items: flex-start;
+    flex-direction: column;
   }
 
   .weather-insight-values {

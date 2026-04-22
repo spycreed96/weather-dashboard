@@ -8,6 +8,10 @@ class HourlyForecastPoint(BaseModel):
     precipitation_mm: float = Field(default=0, ge=0)
     precipitation_probability: int | None = Field(default=None, ge=0, le=100)
     precipitation_type: str = "none"
+    wind_speed_kph: float = Field(default=0, ge=0)
+    wind_gust_kph: float | None = Field(default=None, ge=0)
+    wind_direction: int | None = Field(default=None, ge=0, le=360)
+    wind_direction_label: str | None = None
     icon: str
     description: str
     is_now: bool = False
@@ -24,6 +28,11 @@ class ForecastDay(BaseModel):
     moon_phase_label: str | None = None
     precipitation_total_mm: float = Field(default=0, ge=0)
     precipitation_probability: int | None = Field(default=None, ge=0, le=100)
+    wind_speed_kph: float = Field(default=0, ge=0)
+    wind_current_speed_kph: float | None = Field(default=None, ge=0)
+    wind_gust_kph: float | None = Field(default=None, ge=0)
+    wind_direction: int | None = Field(default=None, ge=0, le=360)
+    wind_direction_label: str | None = None
     hourly_forecast: list[HourlyForecastPoint] = Field(default_factory=list)
 
 

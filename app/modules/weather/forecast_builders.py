@@ -39,6 +39,16 @@ def normalize_probability(value) -> int | None:
         return None
 
 
+def normalize_direction(value) -> int | None:
+    if value is None or value == "":
+        return None
+
+    try:
+        return max(0, min(360, round(float(value))))
+    except (TypeError, ValueError):
+        return None
+
+
 def build_hourly_forecast_points(entries: list[dict]) -> list[HourlyForecastPoint]:
     ordered_entries = sorted(entries, key=lambda item: item.get("sort_key", item.get("hour", 0)))
 
@@ -50,6 +60,10 @@ def build_hourly_forecast_points(entries: list[dict]) -> list[HourlyForecastPoin
             precipitation_mm=round(float(item.get("precipitation_mm") or 0), 2),
             precipitation_probability=normalize_probability(item.get("precipitation_probability")),
             precipitation_type=item.get("precipitation_type", "none"),
+            wind_speed_kph=round(float(item.get("wind_speed_kph") or 0), 1),
+            wind_gust_kph=round(float(item["wind_gust_kph"]), 1) if item.get("wind_gust_kph") is not None else None,
+            wind_direction=normalize_direction(item.get("wind_direction")),
+            wind_direction_label=item.get("wind_direction_label"),
             icon=item.get("icon", ""),
             description=item.get("description", ""),
             is_now=item.get("is_now", False),
@@ -69,6 +83,11 @@ def build_forecast_day(
     moon_phase_label: str | None = None,
     precipitation_total_mm: float = 0,
     precipitation_probability: int | None = None,
+    wind_speed_kph: float = 0,
+    wind_current_speed_kph: float | None = None,
+    wind_gust_kph: float | None = None,
+    wind_direction: int | None = None,
+    wind_direction_label: str | None = None,
 ) -> ForecastDay:
     return ForecastDay(
         date=target_date.isoformat(),
@@ -81,5 +100,10 @@ def build_forecast_day(
         moon_phase_label=moon_phase_label,
         precipitation_total_mm=round(float(precipitation_total_mm or 0), 2),
         precipitation_probability=normalize_probability(precipitation_probability),
+        wind_speed_kph=round(float(wind_speed_kph or 0), 1),
+        wind_current_speed_kph=round(float(wind_current_speed_kph), 1) if wind_current_speed_kph is not None else None,
+        wind_gust_kph=round(float(wind_gust_kph), 1) if wind_gust_kph is not None else None,
+        wind_direction=normalize_direction(wind_direction),
+        wind_direction_label=wind_direction_label,
         hourly_forecast=hourly_forecast or [],
     )

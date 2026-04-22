@@ -499,6 +499,31 @@ def normalize_weatherapi_flag(value) -> bool:
     return str(value).strip().lower() in {"1", "true", "yes"}
 
 
+def normalize_wind_direction(value) -> int | None:
+    if value is None or value == "":
+        return None
+
+    try:
+        return max(0, min(360, round(float(value))))
+    except (TypeError, ValueError):
+        return None
+
+
+def get_max_hourly_value(hourly_payloads: list[dict], key: str) -> float | None:
+    values: list[float] = []
+    for hour_payload in hourly_payloads:
+        value = hour_payload.get(key)
+        if value is None:
+            continue
+
+        try:
+            values.append(float(value))
+        except (TypeError, ValueError):
+            continue
+
+    return max(values) if values else None
+
+
 def build_hour_entry_from_weatherapi(hour_payload: dict) -> dict | None:
     local_time = parse_weatherapi_datetime(hour_payload.get("time"))
     if local_time is None:
@@ -524,6 +549,10 @@ def build_hour_entry_from_weatherapi(hour_payload: dict) -> dict | None:
             normalize_weatherapi_flag(hour_payload.get("will_it_rain")),
             normalize_weatherapi_flag(hour_payload.get("will_it_snow")),
         ),
+        "wind_speed_kph": round(float(hour_payload.get("wind_kph") or 0), 1),
+        "wind_gust_kph": round(float(hour_payload.get("gust_kph")), 1) if hour_payload.get("gust_kph") is not None else None,
+        "wind_direction": normalize_wind_direction(hour_payload.get("wind_degree")),
+        "wind_direction_label": hour_payload.get("wind_dir"),
         "icon": normalize_weatherapi_icon(condition.get("icon")),
         "description": condition.get("text", ""),
         "pressure": round(hour_payload.get("pressure_mb")) if hour_payload.get("pressure_mb") is not None else None,
@@ -549,6 +578,10 @@ def build_current_hour_entry(current_payload: dict, current_local_dt: datetime) 
         "precipitation_mm": precipitation_mm,
         "precipitation_probability": None,
         "precipitation_type": "rain" if precipitation_mm > 0 else "none",
+        "wind_speed_kph": round(float(current_payload.get("wind_kph") or 0), 1),
+        "wind_gust_kph": round(float(current_payload.get("gust_kph")), 1) if current_payload.get("gust_kph") is not None else None,
+        "wind_direction": normalize_wind_direction(current_payload.get("wind_degree")),
+        "wind_direction_label": current_payload.get("wind_dir"),
         "icon": normalize_weatherapi_icon(condition.get("icon")),
         "description": condition.get("text", ""),
         "is_now": True,
@@ -648,6 +681,11 @@ async def get_yesterday_forecast_day(
         day_payload.get("daily_chance_of_rain"),
         day_payload.get("daily_chance_of_snow"),
     )
+    wind_speed_kph = round(float(day_payload.get("maxwind_kph") or 0), 1)
+    wind_current_speed_kph = round(float(closest_hour.get("wind_kph")), 1) if closest_hour and closest_hour.get("wind_kph") is not None else None
+    wind_gust_kph = get_max_hourly_value(hourly_payloads, "gust_kph")
+    wind_direction = normalize_wind_direction(closest_hour.get("wind_degree")) if closest_hour else None
+    wind_direction_label = closest_hour.get("wind_dir") if closest_hour else None
     astronomy_context = build_astronomy_context(forecast_day.get("astro"), yesterday_date, current_local_dt)
 
     return build_forecast_day(
@@ -661,6 +699,11 @@ async def get_yesterday_forecast_day(
         moon_phase_label=astronomy_context.get("moon_phase_label"),
         precipitation_total_mm=precipitation_total_mm,
         precipitation_probability=precipitation_probability,
+        wind_speed_kph=wind_speed_kph,
+        wind_current_speed_kph=wind_current_speed_kph,
+        wind_gust_kph=wind_gust_kph,
+        wind_direction=wind_direction,
+        wind_direction_label=wind_direction_label,
     )
 
 
@@ -711,6 +754,11 @@ def build_forecast_days(
             day_payload.get("daily_chance_of_rain"),
             day_payload.get("daily_chance_of_snow"),
         )
+        wind_speed_kph = round(float(day_payload.get("maxwind_kph") or 0), 1)
+        wind_current_speed_kph = round(float(closest_hour.get("wind_kph")), 1) if closest_hour and closest_hour.get("wind_kph") is not None else None
+        wind_gust_kph = get_max_hourly_value(hourly_payloads, "gust_kph")
+        wind_direction = normalize_wind_direction(closest_hour.get("wind_degree")) if closest_hour else None
+        wind_direction_label = closest_hour.get("wind_dir") if closest_hour else None
 
         if closest_hour:
             hour_condition = closest_hour.get("condition", {})
@@ -724,6 +772,12 @@ def build_forecast_days(
             current_like_temperature = current_temperature
             icon = current_icon
             description = current_description
+            wind_current_speed_kph = round(float(current_payload.get("wind_kph") or 0), 1)
+            wind_direction = normalize_wind_direction(current_payload.get("wind_degree")) or wind_direction
+            wind_direction_label = current_payload.get("wind_dir") or wind_direction_label
+            if current_payload.get("gust_kph") is not None:
+                current_gust = float(current_payload.get("gust_kph"))
+                wind_gust_kph = max(wind_gust_kph or current_gust, current_gust)
 
         forecast_days.append(
             build_forecast_day(
@@ -737,6 +791,11 @@ def build_forecast_days(
                 moon_phase_label=day_astronomy_context.get("moon_phase_label"),
                 precipitation_total_mm=precipitation_total_mm,
                 precipitation_probability=precipitation_probability,
+                wind_speed_kph=wind_speed_kph,
+                wind_current_speed_kph=wind_current_speed_kph,
+                wind_gust_kph=wind_gust_kph,
+                wind_direction=wind_direction,
+                wind_direction_label=wind_direction_label,
             )
         )
 

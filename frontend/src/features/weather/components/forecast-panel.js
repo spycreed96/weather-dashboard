@@ -3,7 +3,7 @@ import { renderForecastChart, renderForecastItems } from "./forecast-list.js";
 const FORECAST_TABS = [
   { id: "overview", label: "Panoramica", enabled: true },
   { id: "precipitation", label: "Precipitazioni", enabled: true },
-  { id: "wind", label: "Vento", enabled: false },
+  { id: "wind", label: "Vento", enabled: true },
   { id: "air-quality", label: "Qualita' dell'aria", enabled: false },
   { id: "humidity", label: "Umidita'", enabled: false },
   { id: "cloudiness", label: "Nuvolosita'", enabled: false },

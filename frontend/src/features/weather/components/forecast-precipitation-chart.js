@@ -112,9 +112,8 @@ export function initPrecipitationForecastChart(day, options = DEFAULT_PRECIPITAT
     return item.precipitation;
   });
 
-  const chartMaximum = getPrecipitationChartMaximum(
-    resolvedOptions.showAccumulation ? [...precipitationData, ...accumulationData.map((item) => item.y)] : precipitationData,
-  );
+  const precipitationMaximum = getPrecipitationChartMaximum(precipitationData);
+  const accumulationMaximum = getPrecipitationChartMaximum(accumulationData.map((item) => item.y));
   const labelItems = points.map((item) => {
     const iconUrl = getWeatherIconUrl(item.icon || "", "2x");
     const img = iconUrl ? new Image() : null;
@@ -150,7 +149,7 @@ export function initPrecipitationForecastChart(day, options = DEFAULT_PRECIPITAT
       tension: 0.32,
       fill: false,
       order: 1,
-      yAxisID: "y",
+      yAxisID: "yRight",
     });
   }
 
@@ -192,10 +191,11 @@ export function initPrecipitationForecastChart(day, options = DEFAULT_PRECIPITAT
             drawBorder: false,
           },
           ticks: { display: false },
+          stacked: true,
         },
         y: {
           min: 0,
-          max: chartMaximum,
+          max: precipitationMaximum,
           position: "left",
           grid: {
             color: "rgba(255, 255, 255, 0.08)",
@@ -211,10 +211,12 @@ export function initPrecipitationForecastChart(day, options = DEFAULT_PRECIPITAT
             color: "rgba(235, 238, 255, 0.72)",
             font: { size: 12, weight: "700" },
           },
+          stacked: true,
         },
         yRight: {
+          display: false,
           min: 0,
-          max: chartMaximum,
+          max: accumulationMaximum,
           position: "right",
           grid: { drawOnChartArea: false, drawBorder: false },
           ticks: {
@@ -238,9 +240,11 @@ export function initPrecipitationForecastChart(day, options = DEFAULT_PRECIPITAT
 }
 
 function createPrecipitationDatasetPoint(item, type) {
+  const shouldRenderBar = item.type === type && item.precipitation > 0;
+
   return {
     x: item.x,
-    y: item.type === type ? item.precipitation : 0,
+    y: shouldRenderBar ? item.precipitation : null,
     __meta: item,
   };
 }
@@ -252,12 +256,13 @@ function createPrecipitationBarDataset(label, data, color) {
     data,
     backgroundColor: color,
     borderColor: color,
-    borderRadius: 4,
+    borderRadius: { topLeft: 11, topRight: 11, bottomLeft: 0, bottomRight: 0 },
     borderSkipped: false,
-    barPercentage: 0.62,
-    categoryPercentage: 0.72,
-    maxBarThickness: 18,
+    barThickness: 22,
+    maxBarThickness: 24,
+    minBarLength: 12,
     order: 2,
+    stack: "precipitation",
     yAxisID: "y",
   };
 }
@@ -316,7 +321,7 @@ function createPrecipitationLabelsPlugin(labelItems, range) {
       labelItems.forEach((item, index) => {
         const x = xScale.getPixelForValue(item.ms);
         if (x < chartArea.left - 28 || x > chartArea.right + 28) return;
-        if (range !== "4h" && index % labelStep !== 0 && item.label !== "Adesso") return;
+        if (!shouldRenderPrecipitationLabel(item, range, labelStep)) return;
 
         ctx.fillText(item.label, x, chartArea.top - 38);
 
@@ -335,14 +340,27 @@ function createPrecipitationLabelsPlugin(labelItems, range) {
 
 function getPrecipitationLabelStep(range) {
   if (range === "4h") {
-    return 1;
-  }
-
-  if (typeof window !== "undefined" && window.innerWidth <= 640) {
-    return 4;
+    return 2;
   }
 
   return 2;
+}
+
+function shouldRenderPrecipitationLabel(item, range, labelStep) {
+  if (item.label === "Adesso") {
+    return false;
+  }
+
+  const itemDate = new Date(item.ms);
+  if (Number.isNaN(itemDate.getTime()) || itemDate.getMinutes() !== 0) {
+    return false;
+  }
+
+  if (range === "4h") {
+    return itemDate.getHours() % labelStep === 0;
+  }
+
+  return itemDate.getHours() % 2 === 0;
 }
 
 function getPrecipitationChartMaximum(values) {

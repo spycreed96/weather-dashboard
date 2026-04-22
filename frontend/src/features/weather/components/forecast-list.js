@@ -29,11 +29,12 @@ export function renderForecastItems(forecastDays, selectedDate = "", unit = "cel
       const iconUrl = getWeatherIconUrl(day.icon, "2x");
       const isSelected = day.date === selectedDate;
       const isPrecipitationMode = mode === "precipitation";
+      const isWindMode = mode === "wind";
 
       return `
         <button
           type="button"
-          class="forecast-day-card${isPrecipitationMode ? " forecast-day-card--precipitation" : ""}${isSelected ? " is-active" : ""}"
+          class="forecast-day-card${isPrecipitationMode ? " forecast-day-card--precipitation" : ""}${isWindMode ? " forecast-day-card--wind" : ""}${isSelected ? " is-active" : ""}"
           data-date="${day.date}"
           aria-pressed="${String(isSelected)}"
         >
@@ -41,11 +42,35 @@ export function renderForecastItems(forecastDays, selectedDate = "", unit = "cel
             <span class="forecast-day-number">${day.day_of_month}</span>
             <span class="forecast-day-label">${day.label}</span>
           </div>
-          ${isPrecipitationMode ? renderForecastPrecipitationCardBody(day) : renderForecastTemperatureCardBody(day, unit, iconUrl)}
+          ${isPrecipitationMode
+            ? renderForecastPrecipitationCardBody(day)
+            : isWindMode
+              ? renderForecastWindCardBody(day)
+              : renderForecastTemperatureCardBody(day, unit, iconUrl)}
         </button>
       `;
     })
     .join("");
+}
+
+function renderForecastWindCardBody(day) {
+  const windSpeed = getForecastWindSpeed(day);
+  const currentWindSpeed = getForecastCurrentWindSpeed(day);
+  const gustSpeed = getForecastWindGust(day);
+  const meterHeight = Math.max(12, Math.min(68, windSpeed * 1.7));
+
+  return `
+    <div class="forecast-day-body forecast-day-body--wind">
+      <div class="forecast-day-wind">
+        <strong class="forecast-day-wind-speed">${formatForecastSpeed(windSpeed)}<span> km/h</span></strong>
+        <span class="forecast-day-wind-current">${formatForecastSpeed(currentWindSpeed)} km/h</span>
+        <span class="forecast-day-wind-gust">Raffiche: ${gustSpeed === null ? "--" : `${formatForecastSpeed(gustSpeed)}km/h`}</span>
+      </div>
+      <span class="forecast-day-wind-meter" aria-hidden="true">
+        <span style="height: ${meterHeight}%"></span>
+      </span>
+    </div>
+  `;
 }
 
 function renderForecastTemperatureCardBody(day, unit, iconUrl) {
@@ -280,6 +305,26 @@ function getForecastPrecipitationTotal(day) {
 function getForecastPrecipitationProbability(day) {
   const value = Number(day?.precipitation_probability);
   return Number.isFinite(value) ? Math.max(0, Math.min(100, Math.round(value))) : null;
+}
+
+function getForecastWindSpeed(day) {
+  const value = Number(day?.wind_speed_kph ?? 0);
+  return Number.isFinite(value) ? Math.max(value, 0) : 0;
+}
+
+function getForecastCurrentWindSpeed(day) {
+  const value = Number(day?.wind_current_speed_kph ?? day?.wind_speed_kph ?? 0);
+  return Number.isFinite(value) ? Math.max(value, 0) : 0;
+}
+
+function getForecastWindGust(day) {
+  const value = Number(day?.wind_gust_kph);
+  return Number.isFinite(value) ? Math.max(value, 0) : null;
+}
+
+function formatForecastSpeed(value) {
+  const numericValue = Number(value);
+  return String(Number.isFinite(numericValue) ? Math.round(numericValue) : 0);
 }
 
 function formatForecastMillimeters(value) {

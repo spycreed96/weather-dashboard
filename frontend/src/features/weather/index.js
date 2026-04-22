@@ -4,6 +4,7 @@ import { renderForecastChart, renderForecastItems } from "./components/forecast-
 import { initForecastDayChart } from "./components/forecast-day-chart.js";
 import { renderForecastPanel } from "./components/forecast-panel.js";
 import { initPrecipitationForecastChart, renderPrecipitationForecastChart } from "./components/forecast-precipitation-chart.js";
+import { initWindForecastChart, renderWindForecastChart } from "./components/forecast-wind-chart.js";
 import { renderSearchForm } from "./components/search-form.js";
 import { renderWeatherInsightsSection, renderWeatherInsightCards } from "./components/weather-insights.js";
 import { createHistoryItem } from "./components/weather-details.js";
@@ -51,6 +52,7 @@ export function mountWeatherFeature(root) {
     showFeelsLikeForecast: false,
     precipitationRange: "24h",
     showPrecipitationAccumulation: true,
+    showWindGusts: true,
     isRefreshPending: false,
     refreshToastTimer: null,
     selectedForecastDate: null,
@@ -276,7 +278,7 @@ function bindForecastTabs(elements, state) {
     }
 
     const tabId = tab.dataset.forecastTab;
-    if (!["overview", "precipitation"].includes(tabId) || state.activeForecastTab === tabId) {
+    if (!["overview", "precipitation", "wind"].includes(tabId) || state.activeForecastTab === tabId) {
       updateForecastTabControls(elements, state);
       return;
     }
@@ -302,19 +304,40 @@ function updateForecastTabControls(elements, state) {
   });
 
   if (elements.forecastPanelTitle) {
-    elements.forecastPanelTitle.textContent = state.activeForecastTab === "precipitation" ? "Precipitazioni" : "Panoramica";
+    elements.forecastPanelTitle.textContent = getForecastPanelTitle(state.activeForecastTab);
   }
 
   if (elements.forecastPanelCopy) {
-    elements.forecastPanelCopy.textContent =
-      state.activeForecastTab === "precipitation"
-        ? "Accumuli orari, probabilita' e andamento delle precipitazioni previste."
-        : "Panello orario con vista termica, trend giornaliero e contesto astronomico.";
+    elements.forecastPanelCopy.textContent = getForecastPanelCopy(state.activeForecastTab);
   }
 
   if (elements.forecastPanelMeta) {
     elements.forecastPanelMeta.classList.toggle("is-hidden", state.activeForecastTab !== "overview");
   }
+}
+
+function getForecastPanelTitle(tabId) {
+  if (tabId === "precipitation") {
+    return "Precipitazioni";
+  }
+
+  if (tabId === "wind") {
+    return "Vento";
+  }
+
+  return "Panoramica";
+}
+
+function getForecastPanelCopy(tabId) {
+  if (tabId === "precipitation") {
+    return "Accumuli orari, probabilita' e andamento delle precipitazioni previste.";
+  }
+
+  if (tabId === "wind") {
+    return "Velocita', raffiche e direzione del vento previste durante la giornata.";
+  }
+
+  return "Panello orario con vista termica, trend giornaliero e contesto astronomico.";
 }
 
 function updateForecastFeelsLikeToggle(elements, state) {
@@ -891,6 +914,19 @@ function renderSelectedForecastChart(elements, state) {
     return;
   }
 
+  if (state.activeForecastTab === "wind") {
+    elements.forecastChart.innerHTML = renderWindForecastChart(selectedDay, {
+      showGusts: state.showWindGusts,
+    });
+    try {
+      initWindForecastChart(selectedDay, {
+        showGusts: state.showWindGusts,
+      });
+    } catch (e) { /* ignore */ }
+    bindWindChartControls(elements, state);
+    return;
+  }
+
   elements.forecastChart.innerHTML = renderForecastChart(
     selectedDay,
     state.temperatureUnit,
@@ -921,6 +957,18 @@ function bindPrecipitationChartControls(elements, state) {
   const accumulationToggle = qs("[data-precipitation-accumulation]", elements.forecastChart);
   accumulationToggle?.addEventListener("click", () => {
     state.showPrecipitationAccumulation = !state.showPrecipitationAccumulation;
+    renderSelectedForecastChart(elements, state);
+  });
+}
+
+function bindWindChartControls(elements, state) {
+  if (!elements.forecastChart) {
+    return;
+  }
+
+  const gustToggle = qs("[data-wind-gust-toggle]", elements.forecastChart);
+  gustToggle?.addEventListener("click", () => {
+    state.showWindGusts = !state.showWindGusts;
     renderSelectedForecastChart(elements, state);
   });
 }
