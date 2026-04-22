@@ -4,11 +4,14 @@ from fastapi import APIRouter, HTTPException, Query
 
 from modules.weather.schemas import CitySuggestion, WeatherResponse
 from modules.weather.service import (
+    get_city_suggestions_data,
+    get_weather_data,
+)
+
+from core.exceptions import (
     WeatherConfigurationError,
     WeatherInputError,
     WeatherProviderError,
-    get_city_suggestions_data,
-    get_weather_data,
 )
 
 router = APIRouter()
