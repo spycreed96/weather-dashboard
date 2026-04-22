@@ -1,4 +1,5 @@
 import { qs, qsa } from "../../shared/utils/dom.js";
+import { bindAppShell } from "../../shared/components/app-shell.js";
 import { formatCurrentTime } from "../../shared/utils/format-date.js";
 import { renderForecastChart, renderForecastItems } from "./components/forecast-list.js";
 import { initForecastDayChart } from "./components/forecast-day-chart.js";
@@ -27,20 +28,8 @@ const HISTORY_SCROLL_STEP = 200;
 const FORECAST_SCROLL_STEP = 260;
 const REFRESH_TOAST_HIDE_DELAY = 2800;
 
-export function mountWeatherFeature(root) {
-  root.innerHTML = `
-    <main class="app-container">
-      ${renderSearchForm()}
-      <div class="dashboard-content">
-        <p id="current-location" class="current-location">--</p>
-        ${renderWeatherCard()}
-        ${renderForecastPanel()}
-        ${renderWeatherInsightsSection()}
-      </div>
-    </main>
-  `;
-
-  const state = {
+function createInitialWeatherState() {
+  return {
     activeQuery: "Catanzaro",
     activeForecastTab: "overview",
     cityMap: null,
@@ -57,12 +46,47 @@ export function mountWeatherFeature(root) {
     refreshToastTimer: null,
     selectedForecastDate: null,
     temperatureUnit: "celsius",
+    weatherRequestId: 0,
+  };
+}
+
+const weatherState = createInitialWeatherState();
+let weatherRuntime = null;
+
+export function mountWeather(root) {
+  unmountWeather();
+
+  const controller = new AbortController();
+  weatherRuntime = {
+    controller,
+    root,
+    shellBinding: null,
+    timers: new Set(),
   };
 
+  root.innerHTML = `
+    ${renderSearchForm()}
+    <div class="dashboard-content">
+      <p id="current-location" class="current-location">--</p>
+      ${renderWeatherCard()}
+      ${renderForecastPanel()}
+      ${renderWeatherInsightsSection()}
+    </div>
+  `;
+
+  const state = weatherState;
   const elements = getElements(root);
+  weatherRuntime.elements = elements;
 
   applySavedTheme(elements.themeToggle);
   updateTemperatureUnitButton(elements, state);
+  weatherRuntime.shellBinding = bindAppShell(root, {
+    onOpen: () => {
+      hideSuggestions(elements);
+      closeTemperatureSettingsDropdown(elements);
+      closeAllHistoryDropdowns();
+    },
+  });
   bindThemeToggle(elements.themeToggle);
   bindRefreshButton(elements, state);
   bindTemperatureToggle(elements, state);
@@ -72,9 +96,41 @@ export function mountWeatherFeature(root) {
   bindForecastNavigation(elements, state);
   bindSearchInteractions(elements, state);
   bindGlobalInteractions(elements);
-  renderForecastPanels(elements, state);
-  void fetchAndRenderWeather("Catanzaro", elements, state);
+
+  if (elements.input) {
+    elements.input.value = state.activeQuery;
+  }
+
+  if (state.currentWeather) {
+    renderWeather(elements, state, state.currentWeather);
+  } else {
+    renderForecastPanels(elements, state);
+    void fetchAndRenderWeather(state.activeQuery, elements, state);
+  }
 }
+
+export function unmountWeather() {
+  if (!weatherRuntime) {
+    return;
+  }
+
+  weatherState.weatherRequestId += 1;
+  weatherRuntime.controller.abort();
+  weatherRuntime.shellBinding?.destroy?.();
+  weatherRuntime.timers.forEach((timerId) => clearTimeout(timerId));
+  weatherRuntime.timers.clear();
+  clearTimeout(weatherState.debounceTimer);
+  clearTimeout(weatherState.refreshToastTimer);
+  weatherState.debounceTimer = null;
+  weatherState.refreshToastTimer = null;
+  weatherState.isRefreshPending = false;
+  destroyWeatherCharts(weatherRuntime.root);
+  destroyCityMap(weatherState);
+  weatherRuntime.root.replaceChildren();
+  weatherRuntime = null;
+}
+
+export const mountWeatherFeature = mountWeather;
 
 function getElements(root) {
   return {
@@ -106,7 +162,7 @@ function getElements(root) {
     pressure: qs("#pressure", root),
     refreshDashboard: qs("#refresh-dashboard", root),
     refreshToast: qs("#refresh-toast", root),
-    searchHeader: qs(".search-header", root),
+    searchHeader: qs(".app-header", root),
     suggestions: qs("#suggestions", root),
     temperature: qs("#temperature", root),
     temperatureOptionCelsius: qs("#temperature-option-celsius", root),
@@ -119,6 +175,24 @@ function getElements(root) {
     visibility: qs("#visibility", root),
     wind: qs("#wind", root),
   };
+}
+
+function getWeatherListenerOptions() {
+  return weatherRuntime?.controller ? { signal: weatherRuntime.controller.signal } : undefined;
+}
+
+function scheduleWeatherTimeout(callback, delay) {
+  if (!weatherRuntime) {
+    return window.setTimeout(callback, delay);
+  }
+
+  const timerId = window.setTimeout(() => {
+    weatherRuntime?.timers.delete(timerId);
+    callback();
+  }, delay);
+
+  weatherRuntime.timers.add(timerId);
+  return timerId;
 }
 
 function applySavedTheme(themeToggle) {
@@ -138,7 +212,7 @@ function bindThemeToggle(themeToggle) {
     document.body.classList.toggle("dark", isDark);
     localStorage.setItem("theme", isDark ? "dark" : "light");
     updateThemeToggle(themeToggle, isDark);
-  });
+  }, getWeatherListenerOptions());
 }
 
 function bindRefreshButton(elements, state) {
@@ -160,6 +234,10 @@ function bindRefreshButton(elements, state) {
 
     const isSuccess = await fetchAndRenderWeather(query, elements, state);
 
+    if (!weatherRuntime || weatherRuntime.elements !== elements) {
+      return;
+    }
+
     state.isRefreshPending = false;
     setRefreshButtonPendingState(elements, false);
 
@@ -169,7 +247,7 @@ function bindRefreshButton(elements, state) {
     }
 
     showRefreshToast(elements, state, "Aggiornamento non riuscito", "error");
-  });
+  }, getWeatherListenerOptions());
 }
 
 function setRefreshButtonPendingState(elements, isPending) {
@@ -192,7 +270,7 @@ function showRefreshToast(elements, state, message, tone) {
   elements.refreshToast.classList.remove("refresh-toast--success", "refresh-toast--error");
   elements.refreshToast.classList.add("is-visible", `refresh-toast--${tone}`);
 
-  state.refreshToastTimer = setTimeout(() => {
+  state.refreshToastTimer = scheduleWeatherTimeout(() => {
     hideRefreshToast(elements, state);
   }, REFRESH_TOAST_HIDE_DELAY);
 }
@@ -213,6 +291,7 @@ function clearRefreshToastTimer(state) {
   }
 
   clearTimeout(state.refreshToastTimer);
+  weatherRuntime?.timers.delete(state.refreshToastTimer);
   state.refreshToastTimer = null;
 }
 
@@ -235,19 +314,19 @@ function bindTemperatureToggle(elements, state) {
   elements.temperatureUnitToggle.addEventListener("click", (event) => {
     event.stopPropagation();
     toggleTemperatureSettingsDropdown(elements, state);
-  });
+  }, getWeatherListenerOptions());
 
   elements.temperatureSettingsClose?.addEventListener("click", () => {
     closeTemperatureSettingsDropdown(elements);
-  });
+  }, getWeatherListenerOptions());
 
   elements.temperatureOptionFahrenheit?.addEventListener("click", () => {
     applyTemperatureUnitSelection("fahrenheit", elements, state);
-  });
+  }, getWeatherListenerOptions());
 
   elements.temperatureOptionCelsius?.addEventListener("click", () => {
     applyTemperatureUnitSelection("celsius", elements, state);
-  });
+  }, getWeatherListenerOptions());
 
   updateTemperatureSettingsDropdown(elements, state);
 }
@@ -261,7 +340,7 @@ function bindForecastFeelsLikeToggle(elements, state) {
     state.showFeelsLikeForecast = !state.showFeelsLikeForecast;
     updateForecastFeelsLikeToggle(elements, state);
     renderSelectedForecastChart(elements, state);
-  });
+  }, getWeatherListenerOptions());
 
   updateForecastFeelsLikeToggle(elements, state);
 }
@@ -291,7 +370,7 @@ function bindForecastTabs(elements, state) {
     requestAnimationFrame(() => {
       updateForecastNavState(elements);
     });
-  });
+  }, getWeatherListenerOptions());
 
   updateForecastTabControls(elements, state);
 }
@@ -475,26 +554,26 @@ function bindHistoryNavigation(elements) {
     elements.historyPrev.addEventListener("click", () => {
       closeAllHistoryDropdowns();
       elements.historyContainer.scrollLeft -= HISTORY_SCROLL_STEP;
-    });
+    }, getWeatherListenerOptions());
   }
 
   if (elements.historyNext) {
     elements.historyNext.addEventListener("click", () => {
       closeAllHistoryDropdowns();
       elements.historyContainer.scrollLeft += HISTORY_SCROLL_STEP;
-    });
+    }, getWeatherListenerOptions());
   }
 
   window.addEventListener("resize", () => {
     closeAllHistoryDropdowns();
     closeTemperatureSettingsDropdown(elements);
     updateHistoryNavVisibility(elements);
-  });
+  }, getWeatherListenerOptions());
 
   elements.historyContainer.addEventListener("scroll", () => {
     closeAllHistoryDropdowns();
     closeTemperatureSettingsDropdown(elements);
-  });
+  }, getWeatherListenerOptions());
 }
 
 function bindForecastNavigation(elements, state) {
@@ -511,7 +590,7 @@ function bindForecastNavigation(elements, state) {
     state.selectedForecastDate = card.dataset.date;
     updateForecastSelection(elements, state);
     renderSelectedForecastChart(elements, state);
-  });
+  }, getWeatherListenerOptions());
 
   if (elements.forecastPrev) {
     elements.forecastPrev.addEventListener("click", () => {
@@ -519,7 +598,7 @@ function bindForecastNavigation(elements, state) {
         left: -FORECAST_SCROLL_STEP,
         behavior: "smooth",
       });
-    });
+    }, getWeatherListenerOptions());
   }
 
   if (elements.forecastNext) {
@@ -528,16 +607,16 @@ function bindForecastNavigation(elements, state) {
         left: FORECAST_SCROLL_STEP,
         behavior: "smooth",
       });
-    });
+    }, getWeatherListenerOptions());
   }
 
   elements.forecastList.addEventListener("scroll", () => {
     updateForecastNavState(elements);
-  });
+  }, getWeatherListenerOptions());
 
   window.addEventListener("resize", () => {
     updateForecastNavState(elements);
-  });
+  }, getWeatherListenerOptions());
 
   updateForecastNavState(elements);
 }
@@ -545,7 +624,8 @@ function bindForecastNavigation(elements, state) {
 function bindSearchInteractions(elements, state) {
   elements.input.addEventListener("input", (event) => {
     clearTimeout(state.debounceTimer);
-    state.debounceTimer = setTimeout(async () => {
+    weatherRuntime?.timers.delete(state.debounceTimer);
+    state.debounceTimer = scheduleWeatherTimeout(async () => {
       const query = event.target.value.trim();
       if (query.length < 2) {
         hideSuggestions(elements);
@@ -554,13 +634,19 @@ function bindSearchInteractions(elements, state) {
 
       try {
         const suggestions = await fetchCitySuggestions(query);
+        if (!weatherRuntime || weatherRuntime.elements !== elements) {
+          return;
+        }
         renderSuggestions(elements, suggestions);
       } catch (error) {
+        if (!weatherRuntime || weatherRuntime.elements !== elements) {
+          return;
+        }
         console.error("Errore suggerimenti:", error);
         hideSuggestions(elements);
       }
     }, 300);
-  });
+  }, getWeatherListenerOptions());
 
   elements.form.addEventListener("submit", (event) => {
     event.preventDefault();
@@ -571,7 +657,7 @@ function bindSearchInteractions(elements, state) {
 
     hideSuggestions(elements);
     void fetchAndRenderWeather(city, elements, state);
-  });
+  }, getWeatherListenerOptions());
 
   elements.suggestions.addEventListener("click", (event) => {
     const item = event.target.closest(".suggestion-item");
@@ -582,7 +668,7 @@ function bindSearchInteractions(elements, state) {
     elements.input.value = item.dataset.city || "";
     hideSuggestions(elements);
     void fetchAndRenderWeather(item.dataset.query || item.dataset.city || "Catanzaro", elements, state);
-  });
+  }, getWeatherListenerOptions());
 }
 
 function bindGlobalInteractions(elements) {
@@ -603,16 +689,27 @@ function bindGlobalInteractions(elements) {
     if (!event.target.closest(".weather-history-item")) {
       closeAllHistoryDropdowns();
     }
-  });
+  }, getWeatherListenerOptions());
 }
 
 async function fetchAndRenderWeather(city, elements, state) {
+  const requestId = ++state.weatherRequestId;
+
   try {
     const data = await fetchWeather(city);
+
+    if (!weatherRuntime || weatherRuntime.elements !== elements || requestId !== state.weatherRequestId) {
+      return false;
+    }
+
     state.activeQuery = city;
     renderWeather(elements, state, data);
     return true;
   } catch (error) {
+    if (!weatherRuntime || weatherRuntime.elements !== elements || requestId !== state.weatherRequestId) {
+      return false;
+    }
+
     console.error("Errore meteo:", error);
     resetWeatherPanel(elements, state);
     return false;
@@ -622,7 +719,13 @@ async function fetchAndRenderWeather(city, elements, state) {
 function renderWeather(elements, state, data) {
   state.currentWeather = data;
   state.forecastData = data.forecast_days || [];
-  state.selectedForecastDate = getDefaultForecastDate(state.forecastData);
+  if (!state.forecastData.some((day) => day.date === state.selectedForecastDate)) {
+    state.selectedForecastDate = getDefaultForecastDate(state.forecastData);
+  }
+
+  if (elements.input) {
+    elements.input.value = state.activeQuery;
+  }
 
   elements.location.textContent = formatLocation(data);
   elements.temperature.dataset.celsius = data.temperature ?? "";
@@ -775,7 +878,7 @@ function addToHistory(elements, state, data) {
   historyEntry.menuButton.addEventListener("click", (event) => {
     event.stopPropagation();
     toggleHistoryDropdown(historyEntry.menuButton, historyEntry.dropdown);
-  });
+  }, getWeatherListenerOptions());
 
   historyEntry.removeButton.addEventListener("click", (event) => {
     event.stopPropagation();
@@ -783,15 +886,15 @@ function addToHistory(elements, state, data) {
       historyEntry.item.remove();
       updateHistoryNavVisibility(elements);
     }
-  });
+  }, getWeatherListenerOptions());
 
   historyEntry.item.addEventListener("click", () => {
     void fetchAndRenderWeather(historyQuery, elements, state);
-  });
+  }, getWeatherListenerOptions());
 
   elements.historyContainer.appendChild(historyEntry.item);
 
-  setTimeout(() => {
+  scheduleWeatherTimeout(() => {
     elements.historyContainer.scrollLeft = elements.historyContainer.scrollWidth;
     updateHistoryNavVisibility(elements);
   }, 100);
@@ -951,14 +1054,14 @@ function bindPrecipitationChartControls(elements, state) {
 
       state.precipitationRange = range;
       renderSelectedForecastChart(elements, state);
-    });
+    }, getWeatherListenerOptions());
   });
 
   const accumulationToggle = qs("[data-precipitation-accumulation]", elements.forecastChart);
   accumulationToggle?.addEventListener("click", () => {
     state.showPrecipitationAccumulation = !state.showPrecipitationAccumulation;
     renderSelectedForecastChart(elements, state);
-  });
+  }, getWeatherListenerOptions());
 }
 
 function bindWindChartControls(elements, state) {
@@ -970,7 +1073,7 @@ function bindWindChartControls(elements, state) {
   gustToggle?.addEventListener("click", () => {
     state.showWindGusts = !state.showWindGusts;
     renderSelectedForecastChart(elements, state);
-  });
+  }, getWeatherListenerOptions());
 }
 
 function bindForecastChartInteractions(elements, state) {
@@ -1078,9 +1181,14 @@ function bindForecastChartInteractions(elements, state) {
     circles.forEach((c) => c.classList.remove("is-hover"));
   }
 
-  svg.addEventListener("mousemove", handleMove);
-  svg.addEventListener("mouseleave", handleLeave);
-  canvas.addEventListener("scroll", handleLeave);
+  svg.addEventListener("mousemove", handleMove, getWeatherListenerOptions());
+  svg.addEventListener("mouseleave", handleLeave, getWeatherListenerOptions());
+  canvas.addEventListener("scroll", handleLeave, getWeatherListenerOptions());
+  weatherRuntime?.controller.signal.addEventListener("abort", () => {
+    if (rafId) {
+      cancelAnimationFrame(rafId);
+    }
+  }, { once: true });
 }
 
 function renderWeatherInsights(elements, state) {
@@ -1153,7 +1261,7 @@ function updateCityMap(elements, state, data) {
   elements.mapCopy.textContent = `Vista geografica centrata su ${mapLabel}`;
 
   requestAnimationFrame(() => {
-    state.cityMap.invalidateSize();
+    state.cityMap?.invalidateSize();
   });
 }
 
@@ -1173,4 +1281,21 @@ function initializeCityMap(elements, state) {
   }).addTo(state.cityMap);
 }
 
-//ciao
+function destroyWeatherCharts(root) {
+  root.querySelectorAll("canvas").forEach((canvas) => {
+    if (canvas._chartInstance) {
+      canvas._chartInstance.destroy();
+      canvas._chartInstance = null;
+    }
+  });
+}
+
+function destroyCityMap(state) {
+  if (state.cityMap) {
+    state.cityMap.remove();
+  }
+
+  state.cityMap = null;
+  state.cityMapCircle = null;
+  state.cityMapMarker = null;
+}

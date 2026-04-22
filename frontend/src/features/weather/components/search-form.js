@@ -1,25 +1,22 @@
+import { renderAppHeader } from "../../../shared/components/app-shell.js";
+
 export function renderSearchForm() {
+  const headerActions = `
+    <button id="refresh-dashboard" class="header-action-btn header-action-btn--refresh" type="button" title="Aggiorna dashboard" aria-label="Aggiorna dashboard" aria-busy="false">
+      <span class="refresh-dashboard-icon" aria-hidden="true">&#8635;</span>
+    </button>
+    <button id="theme-toggle" class="header-action-btn theme-toggle" type="button" title="Cambia tema" aria-label="Cambia tema">&#9790;</button>
+
+    <form id="search-form" class="search-form">
+      <input type="text" id="city-input" placeholder="Cerca localita'" autocomplete="off" />
+      <button class="search-submit" type="submit" title="Cerca" aria-label="Cerca">&#8981;</button>
+      <div id="suggestions" class="suggestions-list"></div>
+    </form>
+  `;
+
   return `
-    <header class="search-header">
-      <div class="header-content">
-        <h1 class="search-header-title">Previsioni</h1>
-
-        <div class="header-actions">
-          <button id="refresh-dashboard" class="header-action-btn header-action-btn--refresh" type="button" title="Aggiorna dashboard" aria-label="Aggiorna dashboard" aria-busy="false">
-            <span class="refresh-dashboard-icon" aria-hidden="true">↻</span>
-          </button>
-          <button id="theme-toggle" class="header-action-btn theme-toggle" type="button" title="Cambia tema" aria-label="Cambia tema">☾</button>
-
-          <form id="search-form" class="search-form">
-            <input type="text" id="city-input" placeholder="Cerca localita'" autocomplete="off" />
-            <button class="search-submit" type="submit" title="Cerca" aria-label="Cerca">⌕</button>
-            <div id="suggestions" class="suggestions-list"></div>
-          </form>
-        </div>
-      </div>
-
-      <div id="refresh-toast" class="refresh-toast" role="status" aria-live="polite" aria-atomic="true"></div>
-    </header>
+    ${renderAppHeader({ title: "Previsioni", activePage: "forecast", actions: headerActions })}
+    <div id="refresh-toast" class="refresh-toast" role="status" aria-live="polite" aria-atomic="true"></div>
     <div class="cities-history">
       <div class="history-wrapper">
         <div id="history-container" class="history-container"></div>
@@ -31,15 +28,15 @@ export function renderSearchForm() {
         <div id="temperature-settings-dropdown" class="temperature-settings-dropdown" aria-hidden="true">
           <div class="temperature-settings-header">
             <h3 class="temperature-settings-title">IMPOSTAZIONI METEO</h3>
-            <button id="temperature-settings-close" class="temperature-settings-close" type="button" aria-label="Chiudi impostazioni meteo">×</button>
+            <button id="temperature-settings-close" class="temperature-settings-close" type="button" aria-label="Chiudi impostazioni meteo">&times;</button>
           </div>
 
           <div class="temperature-settings-group">
             <span class="temperature-settings-label">Temperatura</span>
 
             <div class="temperature-settings-options" role="group" aria-label="Seleziona unita' di temperatura">
-              <button id="temperature-option-fahrenheit" class="temperature-settings-option" type="button" data-unit="fahrenheit">Fahrenheit (°F)</button>
-              <button id="temperature-option-celsius" class="temperature-settings-option" type="button" data-unit="celsius">Celsius (°C)</button>
+              <button id="temperature-option-fahrenheit" class="temperature-settings-option" type="button" data-unit="fahrenheit">Fahrenheit (&deg;F)</button>
+              <button id="temperature-option-celsius" class="temperature-settings-option" type="button" data-unit="celsius">Celsius (&deg;C)</button>
             </div>
           </div>
         </div>
