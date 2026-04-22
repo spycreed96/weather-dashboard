@@ -95,25 +95,17 @@ export function initPrecipitationForecastChart(day, options = DEFAULT_PRECIPITAT
 
   if (canvas._chartInstance) canvas._chartInstance.destroy();
 
-  const accumulationData = [];
-  let accumulation = 0;
-
   const rainData = points.map((item) => createPrecipitationDatasetPoint(item, "rain"));
   const snowData = points.map((item) => createPrecipitationDatasetPoint(item, "snow"));
   const mixedData = points.map((item) => createPrecipitationDatasetPoint(item, "mixed"));
-  const precipitationData = points.map((item) => {
-    accumulation += item.precipitation;
-    const point = {
-      x: item.x,
-      y: roundMillimeters(accumulation),
-      __meta: item,
-    };
-    accumulationData.push(point);
-    return item.precipitation;
-  });
+  const precipitationData = points.map((item) => item.precipitation);
+  const accumulationData = buildAccumulationData(points, resolvedOptions.range);
+  const xDomain = getPrecipitationChartDomain(points, resolvedOptions.range);
 
-  const precipitationMaximum = getPrecipitationChartMaximum(precipitationData);
-  const accumulationMaximum = getPrecipitationChartMaximum(accumulationData.map((item) => item.y));
+  const precipitationMaximum = getPrecipitationChartMaximum([
+    ...precipitationData,
+    ...accumulationData.map((item) => item.y),
+  ]);
   const labelItems = points.map((item) => {
     const iconUrl = getWeatherIconUrl(item.icon || "", "2x");
     const img = iconUrl ? new Image() : null;
@@ -146,7 +138,8 @@ export function initPrecipitationForecastChart(day, options = DEFAULT_PRECIPITAT
       borderJoinStyle: "round",
       pointRadius: 0,
       pointHoverRadius: 4,
-      tension: 0.32,
+      stepped: resolvedOptions.range === "4h" ? "after" : false,
+      tension: resolvedOptions.range === "4h" ? 0 : 0.22,
       fill: false,
       order: 1,
       yAxisID: "yRight",
@@ -185,6 +178,8 @@ export function initPrecipitationForecastChart(day, options = DEFAULT_PRECIPITAT
       scales: {
         x: {
           type: "time",
+          min: xDomain.min,
+          max: xDomain.max,
           time: { unit: "hour", displayFormats: { hour: "HH:mm" } },
           grid: {
             color: "rgba(255, 255, 255, 0.07)",
@@ -216,7 +211,7 @@ export function initPrecipitationForecastChart(day, options = DEFAULT_PRECIPITAT
         yRight: {
           display: false,
           min: 0,
-          max: accumulationMaximum,
+          max: precipitationMaximum,
           position: "right",
           grid: { drawOnChartArea: false, drawBorder: false },
           ticks: {
@@ -237,6 +232,86 @@ export function initPrecipitationForecastChart(day, options = DEFAULT_PRECIPITAT
 
   canvas._chartInstance = chart;
   return chart;
+}
+
+function buildAccumulationData(points, range) {
+  if (!points.length) {
+    return [];
+  }
+
+  const data = [];
+  let accumulation = 0;
+  let accumulatedPointIndex = 0;
+
+  if (range === "4h") {
+    const rangeStart = points[0].rangeStartMs ?? points[0].ms;
+    const firstPointStartsRange = Math.abs(points[0].ms - rangeStart) < 1000;
+
+    if (firstPointStartsRange) {
+      accumulation += points[0].precipitation;
+      accumulatedPointIndex = 1;
+      data.push({
+        x: points[0].x,
+        y: 0,
+        __meta: {
+          ...points[0],
+          label: formatTimeLabel(new Date(points[0].ms)),
+          precipitation: 0,
+        },
+      });
+    } else {
+      data.push({
+        x: new Date(rangeStart).toISOString(),
+        y: 0,
+        __meta: {
+          ...points[0],
+          label: formatTimeLabel(new Date(rangeStart)),
+          precipitation: 0,
+        },
+      });
+    }
+  }
+
+  points.slice(accumulatedPointIndex).forEach((item) => {
+    accumulation += item.precipitation;
+    data.push({
+      x: item.x,
+      y: roundMillimeters(accumulation),
+      __meta: item,
+    });
+  });
+
+  if (range === "4h") {
+    const rangeEnd = points[0].rangeEndMs;
+    const lastPoint = points[points.length - 1];
+    if (rangeEnd && rangeEnd > lastPoint.ms) {
+      data.push({
+        x: new Date(rangeEnd).toISOString(),
+        y: roundMillimeters(accumulation),
+        __meta: {
+          ...lastPoint,
+          label: formatTimeLabel(new Date(rangeEnd)),
+          precipitation: 0,
+        },
+      });
+    }
+  }
+
+  return data;
+}
+
+function getPrecipitationChartDomain(points, range) {
+  if (range === "4h" && points[0]?.rangeStartMs && points[0]?.rangeEndMs) {
+    return {
+      min: new Date(points[0].rangeStartMs).toISOString(),
+      max: new Date(points[0].rangeEndMs).toISOString(),
+    };
+  }
+
+  return {
+    min: undefined,
+    max: undefined,
+  };
 }
 
 function createPrecipitationDatasetPoint(item, type) {
@@ -280,7 +355,7 @@ function getVisiblePrecipitationPoints(day, range) {
       return {
         x: pointDate.toISOString(),
         ms: pointDate.getTime(),
-        label: point?.is_now ? "Adesso" : formatTimeLabel(pointDate),
+        label: formatTimeLabel(pointDate),
         icon: point?.icon || "",
         precipitation: getPrecipitationAmount(point),
         probability: getPrecipitationProbability(point),
@@ -298,7 +373,13 @@ function getVisiblePrecipitationPoints(day, range) {
   const start = isTodayForecast ? now.getTime() : allPoints[0]?.ms ?? 0;
   const end = start + 4 * 60 * 60 * 1000;
   const visiblePoints = allPoints.filter((point) => point.ms >= start && point.ms <= end);
-  return visiblePoints.length ? visiblePoints : allPoints.slice(0, 5);
+  const rangePoints = visiblePoints.length ? visiblePoints : allPoints.slice(0, 5);
+
+  return rangePoints.map((point) => ({
+    ...point,
+    rangeStartMs: start,
+    rangeEndMs: end,
+  }));
 }
 
 function createPrecipitationLabelsPlugin(labelItems, range) {

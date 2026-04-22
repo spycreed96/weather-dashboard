@@ -4,10 +4,6 @@ const FORECAST_TABS = [
   { id: "overview", label: "Panoramica", enabled: true },
   { id: "precipitation", label: "Precipitazioni", enabled: true },
   { id: "wind", label: "Vento", enabled: true },
-  { id: "air-quality", label: "Qualita' dell'aria", enabled: false },
-  { id: "humidity", label: "Umidita'", enabled: false },
-  { id: "cloudiness", label: "Nuvolosita'", enabled: false },
-  { id: "more", label: "...", enabled: false },
 ];
 
 export function renderForecastPanel() {
@@ -24,11 +20,6 @@ export function renderForecastPanel() {
                   : `<span class="feature-tab feature-tab--disabled" aria-disabled="true">${tab.label}</span>`,
             ).join("")}
           </div>
-        </div>
-
-        <div class="forecast-view-toggle" aria-hidden="true">
-          <span class="forecast-view-pill is-active">Grafico</span>
-          <span class="forecast-view-pill">Elenco</span>
         </div>
       </div>
 
