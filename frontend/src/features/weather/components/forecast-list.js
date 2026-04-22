@@ -17,7 +17,7 @@ const CHART_PADDING = {
   left: 54,
 };
 
-export function renderForecastItems(forecastDays, selectedDate = "", unit = "celsius") {
+export function renderForecastItems(forecastDays, selectedDate = "", unit = "celsius", mode = "overview") {
   const visibleDays = forecastDays.slice(0, 11);
 
   if (!visibleDays.length) {
@@ -28,11 +28,12 @@ export function renderForecastItems(forecastDays, selectedDate = "", unit = "cel
     .map((day) => {
       const iconUrl = getWeatherIconUrl(day.icon, "2x");
       const isSelected = day.date === selectedDate;
+      const isPrecipitationMode = mode === "precipitation";
 
       return `
         <button
           type="button"
-          class="forecast-day-card${isSelected ? " is-active" : ""}"
+          class="forecast-day-card${isPrecipitationMode ? " forecast-day-card--precipitation" : ""}${isSelected ? " is-active" : ""}"
           data-date="${day.date}"
           aria-pressed="${String(isSelected)}"
         >
@@ -40,28 +41,55 @@ export function renderForecastItems(forecastDays, selectedDate = "", unit = "cel
             <span class="forecast-day-number">${day.day_of_month}</span>
             <span class="forecast-day-label">${day.label}</span>
           </div>
-          <div class="forecast-day-body">
-            <div class="forecast-day-icon">
-              ${iconUrl ? `<img src="${iconUrl}" alt="${day.description}" />` : "<span>Cloud</span>"}
-            </div>
-            <div class="forecast-day-temperatures">
-              <div class="forecast-temperature-group">
-                <span class="forecast-temperature-label">Max</span>
-                <strong class="forecast-temperature-value" data-celsius="${day.max_temperature}" aria-label="${formatTemperature(day.max_temperature, unit)}">${renderDetailInlineTemperature(day.max_temperature, unit)}</strong>
-              </div>
-              <div class="forecast-temperature-group">
-                <span class="forecast-temperature-label">Ora</span>
-                <strong class="forecast-temperature-value" data-celsius="${day.current_temperature}" aria-label="${formatTemperature(day.current_temperature, unit)}">${renderDetailInlineTemperature(day.current_temperature, unit)}</strong>
-              </div>
-            </div>
-          </div>
+          ${isPrecipitationMode ? renderForecastPrecipitationCardBody(day) : renderForecastTemperatureCardBody(day, unit, iconUrl)}
         </button>
       `;
     })
     .join("");
 }
 
-export function renderForecastChart(day, unit = "celsius", weatherData = null) {
+function renderForecastTemperatureCardBody(day, unit, iconUrl) {
+  return `
+    <div class="forecast-day-body">
+      <div class="forecast-day-icon">
+        ${iconUrl ? `<img src="${iconUrl}" alt="${day.description}" />` : "<span>Cloud</span>"}
+      </div>
+      <div class="forecast-day-temperatures">
+        <div class="forecast-temperature-group">
+          <span class="forecast-temperature-label">Max</span>
+          <strong class="forecast-temperature-value" data-celsius="${day.max_temperature}" aria-label="${formatTemperature(day.max_temperature, unit)}">${renderDetailInlineTemperature(day.max_temperature, unit)}</strong>
+        </div>
+        <div class="forecast-temperature-group">
+          <span class="forecast-temperature-label">Ora</span>
+          <strong class="forecast-temperature-value" data-celsius="${day.current_temperature}" aria-label="${formatTemperature(day.current_temperature, unit)}">${renderDetailInlineTemperature(day.current_temperature, unit)}</strong>
+        </div>
+      </div>
+    </div>
+  `;
+}
+
+function renderForecastPrecipitationCardBody(day) {
+  const precipitationTotal = getForecastPrecipitationTotal(day);
+  const precipitationProbability = getForecastPrecipitationProbability(day);
+  const meterHeight = Math.max(8, Math.min(68, precipitationTotal * 4));
+
+  return `
+    <div class="forecast-day-body forecast-day-body--precipitation">
+      <div class="forecast-day-precipitation">
+        <strong class="forecast-day-precipitation-amount">${formatForecastMillimeters(precipitationTotal)}<span> mm</span></strong>
+        <span class="forecast-day-precipitation-chance">
+          <span class="forecast-day-precipitation-drop" aria-hidden="true"></span>
+          ${precipitationProbability === null ? "--" : `${precipitationProbability}%`}
+        </span>
+      </div>
+      <span class="forecast-day-precipitation-meter" aria-hidden="true">
+        <span style="height: ${meterHeight}%"></span>
+      </span>
+    </div>
+  `;
+}
+
+export function renderForecastChart(day, unit = "celsius", weatherData = null, showFeelsLike = false) {
   if (!day) {
     return '<div class="forecast-chart-empty">Seleziona un giorno per vedere l\'andamento della temperatura nel tempo.</div>';
   }
@@ -186,7 +214,25 @@ export function renderForecastChart(day, unit = "celsius", weatherData = null) {
   });
 
   const verticalOverlay = timelineSlots.map(() => '<div class="forecast-chart-vertical-cell"></div>').join("");
-  const moonPhaseLabel = capitalizeText(weatherData?.moon_phase_label || "fase non disponibile");
+  const moonPhaseLabel = capitalizeText(day?.moon_phase_label || weatherData?.moon_phase_label || "fase non disponibile");
+  const hasFeelsLikeData = hourlyForecast.some(
+    (point) =>
+      !point?.is_now
+      && (point?.feels_like !== undefined
+        || point?.feelsLike !== undefined
+        || point?.apparent_temperature !== undefined)
+      && (point?.feels_like ?? point?.feelsLike ?? point?.apparent_temperature) !== null,
+  );
+  const showFeelsLikeLegend = showFeelsLike && hasFeelsLikeData;
+  const feelsLikeLegendClass = `forecast-chart-legend-item forecast-chart-legend-item--feels-like${showFeelsLikeLegend ? " is-visible" : ""}`;
+  const chartStatusMarkup = showFeelsLikeLegend
+    ? `
+        <div class="forecast-chart-status" aria-hidden="true">
+          <span class="forecast-chart-status-dot"></span>
+          <span class="forecast-chart-status-text">Percepita</span>
+        </div>
+      `
+    : "";
 
   return `
     <div class="forecast-chart-shell">
@@ -196,10 +242,7 @@ export function renderForecastChart(day, unit = "celsius", weatherData = null) {
           <h4 class="forecast-chart-title">${formatForecastHeading(day)}</h4>
         </div>
 
-        <div class="forecast-chart-status" aria-hidden="true">
-          <span class="forecast-chart-status-dot"></span>
-          <span class="forecast-chart-status-text">Percepita</span>
-        </div>
+        ${chartStatusMarkup}
       </div>
 
       <div class="forecast-chart-stage">
@@ -207,8 +250,54 @@ export function renderForecastChart(day, unit = "celsius", weatherData = null) {
           <canvas id="forecast-day-chart-canvas" width="760" height="260" aria-label="Grafico temperatura del giorno"></canvas>
         </div>
       </div>
+
+      <div class="forecast-chart-footer">
+        <div class="forecast-chart-legend" aria-label="Legenda grafico">
+          <span class="forecast-chart-legend-item forecast-chart-legend-item--temperature">
+            <span class="forecast-chart-legend-dot" aria-hidden="true"></span>
+            <span class="forecast-chart-legend-text">Temperatura</span>
+          </span>
+          <span class="${feelsLikeLegendClass}" aria-hidden="${String(!showFeelsLikeLegend)}">
+            <span class="forecast-chart-legend-dash" aria-hidden="true"></span>
+            <span class="forecast-chart-legend-text">Percepita</span>
+          </span>
+        </div>
+
+        <div class="forecast-chart-lunar">
+          <span class="forecast-chart-lunar-dot" aria-hidden="true"></span>
+          <span class="forecast-chart-lunar-text">Fase lunare: <strong>${moonPhaseLabel}</strong></span>
+        </div>
+      </div>
     </div>
   `;
+}
+
+function getForecastPrecipitationTotal(day) {
+  const value = Number(day?.precipitation_total_mm ?? 0);
+  return Number.isFinite(value) ? Math.max(value, 0) : 0;
+}
+
+function getForecastPrecipitationProbability(day) {
+  const value = Number(day?.precipitation_probability);
+  return Number.isFinite(value) ? Math.max(0, Math.min(100, Math.round(value))) : null;
+}
+
+function formatForecastMillimeters(value) {
+  const numericValue = Number(value);
+
+  if (!Number.isFinite(numericValue) || numericValue <= 0) {
+    return "0";
+  }
+
+  if (numericValue < 1) {
+    return numericValue.toFixed(2).replace(/0+$/, "").replace(/\.$/, "");
+  }
+
+  if (numericValue < 20 && !Number.isInteger(numericValue)) {
+    return numericValue.toFixed(2).replace(/0+$/, "").replace(/\.$/, "");
+  }
+
+  return String(Math.round(numericValue));
 }
 
 function formatAxisTemperature(value, unit = "celsius") {

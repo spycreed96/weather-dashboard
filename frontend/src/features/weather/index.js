@@ -3,6 +3,7 @@ import { formatCurrentTime } from "../../shared/utils/format-date.js";
 import { renderForecastChart, renderForecastItems } from "./components/forecast-list.js";
 import { initForecastDayChart } from "./components/forecast-day-chart.js";
 import { renderForecastPanel } from "./components/forecast-panel.js";
+import { initPrecipitationForecastChart, renderPrecipitationForecastChart } from "./components/forecast-precipitation-chart.js";
 import { renderSearchForm } from "./components/search-form.js";
 import { renderWeatherInsightsSection, renderWeatherInsightCards } from "./components/weather-insights.js";
 import { createHistoryItem } from "./components/weather-details.js";
@@ -40,12 +41,16 @@ export function mountWeatherFeature(root) {
 
   const state = {
     activeQuery: "Catanzaro",
+    activeForecastTab: "overview",
     cityMap: null,
     cityMapCircle: null,
     cityMapMarker: null,
     currentWeather: null,
     debounceTimer: null,
     forecastData: [],
+    showFeelsLikeForecast: false,
+    precipitationRange: "24h",
+    showPrecipitationAccumulation: true,
     isRefreshPending: false,
     refreshToastTimer: null,
     selectedForecastDate: null,
@@ -59,6 +64,8 @@ export function mountWeatherFeature(root) {
   bindThemeToggle(elements.themeToggle);
   bindRefreshButton(elements, state);
   bindTemperatureToggle(elements, state);
+  bindForecastFeelsLikeToggle(elements, state);
+  bindForecastTabs(elements, state);
   bindHistoryNavigation(elements);
   bindForecastNavigation(elements, state);
   bindSearchInteractions(elements, state);
@@ -74,9 +81,14 @@ function getElements(root) {
     feelsLike: qs("#feels-like", root),
     dewPoint: qs("#dew-point", root),
     forecastChart: qs("#forecast-chart", root),
+    forecastFeelsLikeToggle: qs("#forecast-feels-like-toggle", root),
     forecastList: qs("#daily-forecast-list", root),
     forecastNext: qs("#forecast-next", root),
+    forecastPanelCopy: qs(".forecast-panel-copy", root),
+    forecastPanelMeta: qs(".forecast-panel-meta", root),
+    forecastPanelTitle: qs("#forecast-panel-title", root),
     forecastPrev: qs("#forecast-prev", root),
+    forecastTabs: qs(".feature-tabs", root),
     weatherInsightsCards: qs("#weather-insights-cards", root),
     form: qs("#search-form", root),
     historyContainer: qs("#history-container", root),
@@ -236,6 +248,87 @@ function bindTemperatureToggle(elements, state) {
   });
 
   updateTemperatureSettingsDropdown(elements, state);
+}
+
+function bindForecastFeelsLikeToggle(elements, state) {
+  if (!elements.forecastFeelsLikeToggle) {
+    return;
+  }
+
+  elements.forecastFeelsLikeToggle.addEventListener("click", () => {
+    state.showFeelsLikeForecast = !state.showFeelsLikeForecast;
+    updateForecastFeelsLikeToggle(elements, state);
+    renderSelectedForecastChart(elements, state);
+  });
+
+  updateForecastFeelsLikeToggle(elements, state);
+}
+
+function bindForecastTabs(elements, state) {
+  if (!elements.forecastTabs) {
+    return;
+  }
+
+  elements.forecastTabs.addEventListener("click", (event) => {
+    const tab = event.target.closest("[data-forecast-tab]");
+    if (!tab) {
+      return;
+    }
+
+    const tabId = tab.dataset.forecastTab;
+    if (!["overview", "precipitation"].includes(tabId) || state.activeForecastTab === tabId) {
+      updateForecastTabControls(elements, state);
+      return;
+    }
+
+    state.activeForecastTab = tabId;
+    renderForecastList(elements, state);
+    updateForecastSelection(elements, state);
+    renderSelectedForecastChart(elements, state);
+    updateForecastTabControls(elements, state);
+    requestAnimationFrame(() => {
+      updateForecastNavState(elements);
+    });
+  });
+
+  updateForecastTabControls(elements, state);
+}
+
+function updateForecastTabControls(elements, state) {
+  qsa("[data-forecast-tab]", elements.forecastTabs || document).forEach((tab) => {
+    const isActive = tab.dataset.forecastTab === state.activeForecastTab;
+    tab.classList.toggle("is-active", isActive);
+    tab.setAttribute("aria-pressed", String(isActive));
+  });
+
+  if (elements.forecastPanelTitle) {
+    elements.forecastPanelTitle.textContent = state.activeForecastTab === "precipitation" ? "Precipitazioni" : "Panoramica";
+  }
+
+  if (elements.forecastPanelCopy) {
+    elements.forecastPanelCopy.textContent =
+      state.activeForecastTab === "precipitation"
+        ? "Accumuli orari, probabilita' e andamento delle precipitazioni previste."
+        : "Panello orario con vista termica, trend giornaliero e contesto astronomico.";
+  }
+
+  if (elements.forecastPanelMeta) {
+    elements.forecastPanelMeta.classList.toggle("is-hidden", state.activeForecastTab !== "overview");
+  }
+}
+
+function updateForecastFeelsLikeToggle(elements, state) {
+  if (!elements.forecastFeelsLikeToggle) {
+    return;
+  }
+
+  const isActive = Boolean(state.showFeelsLikeForecast);
+  elements.forecastFeelsLikeToggle.classList.toggle("is-active", isActive);
+  elements.forecastFeelsLikeToggle.setAttribute("aria-pressed", String(isActive));
+  elements.forecastFeelsLikeToggle.setAttribute(
+    "aria-label",
+    isActive ? "Nascondi temperatura percepita dal grafico" : "Mostra temperatura percepita nel grafico",
+  );
 }
 
 function updateTemperatureUnitButton(elements, state) {
@@ -531,7 +624,7 @@ function renderWeather(elements, state, data) {
     : "<span>Cloud</span>";
 
   if (elements.forecastList) {
-    elements.forecastList.innerHTML = renderForecastItems(state.forecastData, state.selectedForecastDate, state.temperatureUnit);
+    renderForecastList(elements, state);
     updateForecastSelection(elements, state);
     requestAnimationFrame(() => {
       updateForecastNavState(elements);
@@ -565,7 +658,7 @@ function resetWeatherPanel(elements, state) {
   elements.icon.textContent = "--";
 
   if (elements.forecastList) {
-    elements.forecastList.innerHTML = renderForecastItems([], "", "celsius");
+    renderForecastList(elements, state);
     updateForecastNavState(elements);
   }
 
@@ -757,7 +850,22 @@ function updateForecastSelection(elements, state) {
   });
 }
 
+function renderForecastList(elements, state) {
+  if (!elements.forecastList) {
+    return;
+  }
+
+  elements.forecastList.innerHTML = renderForecastItems(
+    state.forecastData,
+    state.selectedForecastDate,
+    state.temperatureUnit,
+    state.activeForecastTab,
+  );
+}
+
 function renderForecastPanels(elements, state) {
+  updateForecastTabControls(elements, state);
+  updateForecastFeelsLikeToggle(elements, state);
   renderSelectedForecastChart(elements, state);
   renderWeatherInsights(elements, state);
 }
@@ -768,9 +876,53 @@ function renderSelectedForecastChart(elements, state) {
   }
 
   const selectedDay = state.forecastData.find((day) => day.date === state.selectedForecastDate) || null;
-  elements.forecastChart.innerHTML = renderForecastChart(selectedDay, state.temperatureUnit, state.currentWeather);
-  try { initForecastDayChart(selectedDay, state.temperatureUnit); } catch (e) { /* ignore */ }
+  if (state.activeForecastTab === "precipitation") {
+    elements.forecastChart.innerHTML = renderPrecipitationForecastChart(selectedDay, {
+      range: state.precipitationRange,
+      showAccumulation: state.showPrecipitationAccumulation,
+    });
+    try {
+      initPrecipitationForecastChart(selectedDay, {
+        range: state.precipitationRange,
+        showAccumulation: state.showPrecipitationAccumulation,
+      });
+    } catch (e) { /* ignore */ }
+    bindPrecipitationChartControls(elements, state);
+    return;
+  }
+
+  elements.forecastChart.innerHTML = renderForecastChart(
+    selectedDay,
+    state.temperatureUnit,
+    state.currentWeather,
+    state.showFeelsLikeForecast,
+  );
+  try { initForecastDayChart(selectedDay, state.temperatureUnit, state.showFeelsLikeForecast); } catch (e) { /* ignore */ }
   bindForecastChartInteractions(elements, state);
+}
+
+function bindPrecipitationChartControls(elements, state) {
+  if (!elements.forecastChart) {
+    return;
+  }
+
+  qsa("[data-precipitation-range]", elements.forecastChart).forEach((button) => {
+    button.addEventListener("click", () => {
+      const range = button.dataset.precipitationRange;
+      if (!range || state.precipitationRange === range) {
+        return;
+      }
+
+      state.precipitationRange = range;
+      renderSelectedForecastChart(elements, state);
+    });
+  });
+
+  const accumulationToggle = qs("[data-precipitation-accumulation]", elements.forecastChart);
+  accumulationToggle?.addEventListener("click", () => {
+    state.showPrecipitationAccumulation = !state.showPrecipitationAccumulation;
+    renderSelectedForecastChart(elements, state);
+  });
 }
 
 function bindForecastChartInteractions(elements, state) {

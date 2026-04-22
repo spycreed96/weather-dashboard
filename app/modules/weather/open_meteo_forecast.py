@@ -40,6 +40,10 @@ OPEN_METEO_WEATHER_MAP = {
 }
 
 
+SNOW_WEATHER_CODES = {71, 73, 75, 77, 85, 86}
+MIXED_WEATHER_CODES = {56, 57, 66, 67}
+
+
 def parse_iso_datetime(value: str | None) -> datetime | None:
     if not value:
         return None
@@ -61,14 +65,37 @@ def get_open_meteo_icon_and_description(weather_code: int | None, hour: int | No
     return f"{base_icon}{'d' if is_day else 'n'}", description
 
 
+def normalize_probability(value) -> int | None:
+    if value is None or value == "":
+        return None
+
+    try:
+        return max(0, min(100, round(float(value))))
+    except (TypeError, ValueError):
+        return None
+
+
+def classify_open_meteo_precipitation_type(weather_code: int | None, precipitation_mm: float) -> str:
+    if precipitation_mm <= 0:
+        return "none"
+
+    if weather_code in SNOW_WEATHER_CODES:
+        return "snow"
+
+    if weather_code in MIXED_WEATHER_CODES:
+        return "mixed"
+
+    return "rain"
+
+
 async def fetch_open_meteo_forecast(client: httpx.AsyncClient, lat: float, lon: float, timezone: str) -> dict:
     response = await client.get(
         OPEN_METEO_FORECAST_URL,
         params={
             "latitude": lat,
             "longitude": lon,
-            "daily": "weather_code,temperature_2m_max,temperature_2m_min",
-            "hourly": "temperature_2m,weather_code",
+            "daily": "weather_code,temperature_2m_max,temperature_2m_min,precipitation_sum,precipitation_probability_max",
+            "hourly": "temperature_2m,apparent_temperature,precipitation,precipitation_probability,weather_code",
             "timezone": timezone or "auto",
             "forecast_days": MAX_FORECAST_DAYS,
         },
@@ -93,8 +120,16 @@ def build_open_meteo_forecast_days(
             continue
 
         temperatures = hourly_payload.get("temperature_2m", [])
+        apparent_temperatures = hourly_payload.get("apparent_temperature", [])
+        precipitations = hourly_payload.get("precipitation", [])
+        precipitation_probabilities = hourly_payload.get("precipitation_probability", [])
         weather_codes = hourly_payload.get("weather_code", [])
         temperature = temperatures[index] if index < len(temperatures) else None
+        apparent_temperature = apparent_temperatures[index] if index < len(apparent_temperatures) else None
+        precipitation_mm = round(float(precipitations[index] if index < len(precipitations) else 0) or 0, 2)
+        precipitation_probability = normalize_probability(
+            precipitation_probabilities[index] if index < len(precipitation_probabilities) else None
+        )
         weather_code = weather_codes[index] if index < len(weather_codes) else None
         icon, description = get_open_meteo_icon_and_description(weather_code, local_dt.hour)
         date_key = local_dt.date().isoformat()
@@ -106,6 +141,10 @@ def build_open_meteo_forecast_days(
                 "hour": local_dt.hour,
                 "time_label": local_dt.strftime("%H:%M"),
                 "temperature": round(temperature or 0),
+                "feels_like": round(apparent_temperature) if apparent_temperature is not None else None,
+                "precipitation_mm": precipitation_mm,
+                "precipitation_probability": precipitation_probability,
+                "precipitation_type": classify_open_meteo_precipitation_type(weather_code, precipitation_mm),
                 "icon": icon,
                 "description": description,
             }
@@ -114,6 +153,8 @@ def build_open_meteo_forecast_days(
     forecast_days: list[ForecastDay] = []
     daily_times = daily_payload.get("time", [])
     max_temperatures = daily_payload.get("temperature_2m_max", [])
+    precipitation_sums = daily_payload.get("precipitation_sum", [])
+    precipitation_probabilities = daily_payload.get("precipitation_probability_max", [])
     weather_codes = daily_payload.get("weather_code", [])
 
     for index, date_value in enumerate(daily_times):
@@ -133,6 +174,12 @@ def build_open_meteo_forecast_days(
             13,
         )
         max_temperature = max_temperatures[index] if index < len(max_temperatures) else closest_entry["temperature"]
+        precipitation_total_mm = (
+            precipitation_sums[index] if index < len(precipitation_sums) else sum(entry.get("precipitation_mm", 0) for entry in day_entries)
+        )
+        precipitation_probability = normalize_probability(
+            precipitation_probabilities[index] if index < len(precipitation_probabilities) else None
+        )
 
         forecast_days.append(
             build_forecast_day(
@@ -143,6 +190,8 @@ def build_open_meteo_forecast_days(
                 closest_entry.get("icon") or day_icon,
                 closest_entry.get("description") or day_description,
                 build_hourly_forecast_points(display_entries),
+                precipitation_total_mm=precipitation_total_mm,
+                precipitation_probability=precipitation_probability,
             )
         )
 

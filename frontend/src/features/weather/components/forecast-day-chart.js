@@ -7,7 +7,7 @@ import {
   shouldShowTemperatureDegree,
 } from "../utils/weather-formatters.js";
 
-export function initForecastDayChart(day, unit = "celsius") {
+export function initForecastDayChart(day, unit = "celsius", showFeelsLike = false) {
   const canvas = document.getElementById("forecast-day-chart-canvas");
   if (!canvas || typeof Chart === "undefined") return null;
   if (!day) return null;
@@ -18,7 +18,7 @@ export function initForecastDayChart(day, unit = "celsius") {
     return new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
   }
 
-  const tempData = hourly
+  const mappedHourly = hourly
     .map((point) => {
       const meta = { ...point };
 
@@ -40,11 +40,37 @@ export function initForecastDayChart(day, unit = "celsius") {
 
       return {
         x: x || new Date().toISOString(),
-        y: meta.temperature != null ? convertTemperatureValue(meta.temperature, unit) : null,
         __meta: meta,
       };
     })
     .filter((point) => !(point.__meta && point.__meta.is_now));
+
+  const tempData = mappedHourly
+    .map((point) => ({
+      ...point,
+      y: point.__meta?.temperature != null ? convertTemperatureValue(point.__meta.temperature, unit) : null,
+      __rawCelsius: point.__meta?.temperature,
+      __series: "temperature",
+    }))
+    .filter((point) => point.y !== null)
+    .sort(compareChartPoints);
+
+  const feelsLikeData = showFeelsLike
+    ? mappedHourly
+        .map((point) => {
+          const feelsLikeTemperature = getFeelsLikeTemperature(point.__meta);
+
+          return {
+            ...point,
+            y: feelsLikeTemperature !== null ? convertTemperatureValue(feelsLikeTemperature, unit) : null,
+            __rawCelsius: feelsLikeTemperature,
+            __series: "feels_like",
+          };
+        })
+        .filter((point) => point.y !== null)
+        .sort(compareChartPoints)
+    : [];
+  const showFeelsLikeLine = showFeelsLike && feelsLikeData.length > 0;
 
   if (!tempData.length) {
     return null;
@@ -70,7 +96,8 @@ export function initForecastDayChart(day, unit = "celsius") {
     };
   });
 
-  const yValues = tempData
+  const scaleData = showFeelsLikeLine ? [...tempData, ...feelsLikeData] : tempData;
+  const yValues = scaleData
     .map((point) => Number(point.y))
     .filter((value) => Number.isFinite(value));
   const yScaleConfig = getChartTemperatureScale(yValues, unit);
@@ -179,7 +206,7 @@ export function initForecastDayChart(day, unit = "celsius") {
     data: {
       datasets: [
         {
-          label: `Temperatura (${unit === "celsius" ? "°C" : "°F"})`,
+          label: "Temperatura",
           data: tempData,
           borderColor: "rgba(246, 246, 242, 0.96)",
           backgroundColor: "rgba(255, 213, 138, 0.24)",
@@ -189,7 +216,30 @@ export function initForecastDayChart(day, unit = "celsius") {
           pointHoverRadius: (context) => (context.raw?.__meta?.is_now ? 0 : 6),
           hitRadius: (context) => (context.raw?.__meta?.is_now ? 0 : 8),
           fill: true,
+          order: 2,
         },
+        ...(showFeelsLikeLine
+          ? [
+              {
+                label: "Percepita",
+                data: feelsLikeData,
+                borderColor: "rgba(176, 188, 213, 0.96)",
+                backgroundColor: "rgba(177, 188, 213, 0)",
+                borderCapStyle: "round",
+                borderJoinStyle: "round",
+                borderWidth: 2.4,
+                cubicInterpolationMode: "monotone",
+                tension: 0.42,
+                pointRadius: 0,
+                pointHoverRadius: 5,
+                hitRadius: 8,
+                fill: false,
+                gradientFill: false,
+                order: 1,
+                spanGaps: true,
+              },
+            ]
+          : []),
       ],
     },
     options: {
@@ -224,7 +274,7 @@ export function initForecastDayChart(day, unit = "celsius") {
               }
             },
             label(item) {
-              const rawTemperature = item.raw?.__meta?.temperature;
+              const rawTemperature = item.raw?.__rawCelsius;
               return `${item.dataset.label}: ${formatDetailTemperature(rawTemperature ?? item.parsed.y, unit)}`;
             },
           },
@@ -335,6 +385,28 @@ function formatChartAxisTemperature(value, unit = "celsius") {
   }
 
   return `${roundedValue}${shouldShowTemperatureDegree(unit) ? "°" : getTemperatureUnitCharacter(unit)}`;
+}
+
+function getFeelsLikeTemperature(meta) {
+  const value = meta?.feels_like ?? meta?.feelsLike ?? meta?.apparent_temperature ?? null;
+
+  if (value === null || value === undefined || value === "") {
+    return null;
+  }
+
+  const numericValue = Number(value);
+  return Number.isFinite(numericValue) ? numericValue : null;
+}
+
+function compareChartPoints(left, right) {
+  const leftTime = typeof left.x === "string" ? Date.parse(left.x) : Number(left.x);
+  const rightTime = typeof right.x === "string" ? Date.parse(right.x) : Number(right.x);
+
+  if (!Number.isFinite(leftTime) || !Number.isFinite(rightTime)) {
+    return 0;
+  }
+
+  return leftTime - rightTime;
 }
 
 function getHourlyLabelHourStep() {

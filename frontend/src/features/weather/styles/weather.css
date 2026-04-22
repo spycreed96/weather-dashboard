@@ -505,16 +505,23 @@
 }
 
 .feature-tab {
+  appearance: none;
   background: rgba(255, 255, 255, 0.05);
   border: 1px solid rgba(255, 255, 255, 0.08);
   border-radius: 999px;
   color: rgba(235, 238, 255, 0.84);
+  cursor: pointer;
   display: inline-flex;
   font-size: 0.92rem;
   font-weight: 600;
   min-height: 38px;
   padding: 0 16px;
   align-items: center;
+}
+
+.feature-tab--disabled {
+  cursor: default;
+  opacity: 0.72;
 }
 
 .feature-tab.is-active {
@@ -1719,6 +1726,7 @@
   gap: 14px;
   min-height: 118px;
   padding: 14px;
+  position: relative;
   text-align: left;
   transition: var(--transition);
 }
@@ -1805,6 +1813,73 @@
   font-weight: 700;
 }
 
+.forecast-day-card--precipitation {
+  min-height: 118px;
+  overflow: hidden;
+}
+
+.forecast-day-body--precipitation {
+  align-items: flex-end;
+  justify-content: space-between;
+  min-height: 56px;
+}
+
+.forecast-day-precipitation {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  min-width: 0;
+}
+
+.forecast-day-precipitation-amount {
+  color: #ffffff;
+  font-size: 1.28rem;
+  font-weight: 800;
+  line-height: 1;
+}
+
+.forecast-day-precipitation-amount span {
+  color: rgba(235, 238, 255, 0.82);
+  font-size: 0.84rem;
+  font-weight: 700;
+  margin-left: 3px;
+}
+
+.forecast-day-precipitation-chance {
+  align-items: center;
+  color: rgba(235, 238, 255, 0.82);
+  display: inline-flex;
+  font-size: 0.86rem;
+  font-weight: 800;
+  gap: 6px;
+}
+
+.forecast-day-precipitation-drop {
+  background: linear-gradient(180deg, #8fd2ff 0%, #367cff 100%);
+  border-radius: 999px 999px 999px 2px;
+  display: inline-flex;
+  height: 10px;
+  transform: rotate(45deg);
+  width: 10px;
+}
+
+.forecast-day-precipitation-meter {
+  align-items: flex-end;
+  background: rgba(255, 255, 255, 0.08);
+  border-radius: 999px;
+  display: flex;
+  height: 68px;
+  overflow: hidden;
+  width: 20px;
+}
+
+.forecast-day-precipitation-meter span {
+  background: linear-gradient(180deg, #527dff 0%, #2f6bff 100%);
+  border-radius: inherit;
+  display: block;
+  width: 100%;
+}
+
 .forecast-empty {
   color: rgba(235, 238, 255, 0.68);
   font-size: 0.95rem;
@@ -1837,6 +1912,10 @@
   white-space: nowrap;
 }
 
+.forecast-panel-meta.is-hidden {
+  display: none;
+}
+
 .forecast-panel-meta-label {
   color: rgba(235, 238, 255, 0.78);
   font-size: 0.92rem;
@@ -1844,11 +1923,16 @@
 }
 
 .forecast-panel-meta-switch {
+  appearance: none;
   background: rgba(255, 255, 255, 0.22);
+  border: 0;
   border-radius: 999px;
+  cursor: pointer;
   display: inline-flex;
   height: 22px;
+  padding: 0;
   position: relative;
+  transition: background 0.24s ease, box-shadow 0.24s ease;
   width: 40px;
 }
 
@@ -1860,7 +1944,23 @@
   left: 4px;
   position: absolute;
   top: 4px;
+  transition: background 0.24s ease, transform 0.24s cubic-bezier(0.2, 0.8, 0.2, 1);
   width: 14px;
+}
+
+.forecast-panel-meta-switch.is-active {
+  background: #3b82f6;
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.18);
+}
+
+.forecast-panel-meta-switch.is-active::before {
+  background: #ffffff;
+  transform: translateX(18px);
+}
+
+.forecast-panel-meta-switch:focus-visible {
+  outline: 2px solid rgba(255, 216, 118, 0.9);
+  outline-offset: 3px;
 }
 
 .forecast-chart {
@@ -2140,7 +2240,12 @@
   display: flex;
   gap: 12px;
   justify-content: space-between;
-  padding-top: 10px;
+  padding: 0 18px;
+}
+
+.forecast-chart-lunar {
+  margin-left: auto;
+  white-space: nowrap;
 }
 
 .forecast-chart-legend,
@@ -2149,6 +2254,32 @@
   color: rgba(235, 238, 255, 0.82);
   display: inline-flex;
   gap: 10px;
+}
+
+.forecast-chart-legend {
+  flex-wrap: wrap;
+}
+
+.forecast-chart-legend-item {
+  align-items: center;
+  display: inline-flex;
+  gap: 8px;
+  min-height: 18px;
+}
+
+.forecast-chart-legend-item--feels-like {
+  max-width: 0;
+  opacity: 0;
+  overflow: hidden;
+  transform: translateX(-4px);
+  transition: max-width 0.24s ease, opacity 0.18s ease, transform 0.24s ease;
+  white-space: nowrap;
+}
+
+.forecast-chart-legend-item--feels-like.is-visible {
+  max-width: 120px;
+  opacity: 1;
+  transform: translateX(0);
 }
 
 .forecast-chart-legend-text,
@@ -2169,6 +2300,15 @@
   width: 12px;
 }
 
+.forecast-chart-legend-dash {
+  background: rgba(177, 188, 213, 0.86);
+  border-radius: 999px;
+  display: inline-flex;
+  flex: 0 0 auto;
+  height: 2px;
+  width: 14px;
+}
+
 .forecast-chart-lunar-dot {
   background: linear-gradient(180deg, #ffeb9d 0%, #e5bc33 100%);
   box-shadow: inset -4px 0 0 rgba(45, 54, 95, 0.66);
@@ -2179,6 +2319,158 @@
 .forecast-chart-lunar strong {
   color: #ffffff;
   font-weight: 700;
+}
+
+.forecast-chart-shell--precipitation {
+  gap: 12px;
+}
+
+.forecast-precipitation-header {
+  align-items: center;
+  display: flex;
+  gap: 16px;
+  justify-content: space-between;
+  padding: 0 18px;
+}
+
+.forecast-precipitation-title {
+  color: #ffffff;
+  font-size: 1rem;
+  font-weight: 800;
+  margin: 0;
+}
+
+.forecast-precipitation-controls {
+  align-items: center;
+  display: inline-flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  justify-content: flex-end;
+}
+
+.forecast-precipitation-range,
+.forecast-precipitation-accumulation-toggle {
+  align-items: center;
+  appearance: none;
+  background: transparent;
+  border: 0;
+  color: rgba(235, 238, 255, 0.82);
+  cursor: pointer;
+  display: inline-flex;
+  font-size: 0.86rem;
+  font-weight: 700;
+  gap: 8px;
+  min-height: 28px;
+  padding: 0;
+}
+
+.forecast-precipitation-range-indicator {
+  border: 1px solid rgba(235, 238, 255, 0.72);
+  border-radius: 50%;
+  display: inline-flex;
+  height: 24px;
+  width: 24px;
+}
+
+.forecast-precipitation-range.is-active .forecast-precipitation-range-indicator {
+  background:
+    radial-gradient(circle, #ffffff 0 3px, transparent 4px),
+    linear-gradient(180deg, #2c98ff 0%, #1474c8 100%);
+  border-color: transparent;
+}
+
+.forecast-precipitation-toggle-track {
+  align-items: center;
+  background: #1d8ad7;
+  border-radius: 999px;
+  display: inline-flex;
+  height: 22px;
+  padding: 0 4px;
+  transition: background 0.22s ease;
+  width: 40px;
+}
+
+.forecast-precipitation-toggle-thumb {
+  background: #ffffff;
+  border-radius: 50%;
+  display: inline-flex;
+  height: 14px;
+  transform: translateX(18px);
+  transition: transform 0.22s ease;
+  width: 14px;
+}
+
+.forecast-precipitation-accumulation-toggle:not(.is-active) .forecast-precipitation-toggle-track {
+  background: rgba(255, 255, 255, 0.18);
+}
+
+.forecast-precipitation-accumulation-toggle:not(.is-active) .forecast-precipitation-toggle-thumb {
+  transform: translateX(0);
+}
+
+.forecast-precipitation-range:focus-visible,
+.forecast-precipitation-accumulation-toggle:focus-visible {
+  outline: 2px solid rgba(126, 220, 255, 0.86);
+  outline-offset: 3px;
+}
+
+.forecast-precipitation-stage {
+  min-height: 320px;
+}
+
+.forecast-precipitation-canvas-embed {
+  height: 320px;
+  padding: 0 18px;
+}
+
+.forecast-precipitation-canvas-embed canvas {
+  display: block;
+  height: 100% !important;
+  width: 100% !important;
+}
+
+.forecast-precipitation-legend {
+  align-items: center;
+  color: rgba(235, 238, 255, 0.82);
+  display: flex;
+  flex-wrap: wrap;
+  gap: 14px;
+  padding: 0 18px;
+}
+
+.forecast-precipitation-legend-item {
+  align-items: center;
+  display: inline-flex;
+  font-size: 0.88rem;
+  font-weight: 600;
+  gap: 8px;
+}
+
+.forecast-precipitation-legend-dot {
+  border-radius: 50%;
+  display: inline-flex;
+  height: 12px;
+  width: 12px;
+}
+
+.forecast-precipitation-legend-dot--rain {
+  background: #4272ff;
+}
+
+.forecast-precipitation-legend-dot--snow {
+  background: #84c3ff;
+}
+
+.forecast-precipitation-legend-dot--mixed {
+  background: #69e5ff;
+}
+
+.forecast-precipitation-legend-line {
+  background: #7edcff;
+  border-radius: 999px;
+  display: inline-flex;
+  height: 2px;
+  width: 18px;
 }
 
 /* forecast panel related styles removed */
@@ -2817,6 +3109,20 @@
   .forecast-chart-footer {
     align-items: flex-start;
     flex-direction: column;
+  }
+
+  .forecast-chart-lunar {
+    margin-left: 0;
+    white-space: normal;
+  }
+
+  .forecast-precipitation-header {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .forecast-precipitation-controls {
+    justify-content: flex-start;
   }
 
   .weather-insight-values {

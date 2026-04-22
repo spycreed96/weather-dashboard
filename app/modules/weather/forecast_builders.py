@@ -29,6 +29,16 @@ def calculate_dew_point(temperature_celsius: float, humidity: int | float) -> fl
     return round(dew_point)
 
 
+def normalize_probability(value) -> int | None:
+    if value is None or value == "":
+        return None
+
+    try:
+        return max(0, min(100, round(float(value))))
+    except (TypeError, ValueError):
+        return None
+
+
 def build_hourly_forecast_points(entries: list[dict]) -> list[HourlyForecastPoint]:
     ordered_entries = sorted(entries, key=lambda item: item.get("sort_key", item.get("hour", 0)))
 
@@ -36,6 +46,10 @@ def build_hourly_forecast_points(entries: list[dict]) -> list[HourlyForecastPoin
         HourlyForecastPoint(
             time_label=item.get("time_label", f"{item.get('hour', 0):02d}:00"),
             temperature=round(item.get("temperature", 0)),
+            feels_like=round(item["feels_like"]) if item.get("feels_like") is not None else None,
+            precipitation_mm=round(float(item.get("precipitation_mm") or 0), 2),
+            precipitation_probability=normalize_probability(item.get("precipitation_probability")),
+            precipitation_type=item.get("precipitation_type", "none"),
             icon=item.get("icon", ""),
             description=item.get("description", ""),
             is_now=item.get("is_now", False),
@@ -52,6 +66,9 @@ def build_forecast_day(
     icon: str,
     description: str,
     hourly_forecast: list[HourlyForecastPoint] | None = None,
+    moon_phase_label: str | None = None,
+    precipitation_total_mm: float = 0,
+    precipitation_probability: int | None = None,
 ) -> ForecastDay:
     return ForecastDay(
         date=target_date.isoformat(),
@@ -61,5 +78,8 @@ def build_forecast_day(
         current_temperature=round(current_temperature),
         icon=icon,
         description=description,
+        moon_phase_label=moon_phase_label,
+        precipitation_total_mm=round(float(precipitation_total_mm or 0), 2),
+        precipitation_probability=normalize_probability(precipitation_probability),
         hourly_forecast=hourly_forecast or [],
     )

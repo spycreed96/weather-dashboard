@@ -4,6 +4,10 @@ from pydantic import BaseModel, Field
 class HourlyForecastPoint(BaseModel):
     time_label: str = Field(min_length=1)
     temperature: float
+    feels_like: float | None = None
+    precipitation_mm: float = Field(default=0, ge=0)
+    precipitation_probability: int | None = Field(default=None, ge=0, le=100)
+    precipitation_type: str = "none"
     icon: str
     description: str
     is_now: bool = False
@@ -17,6 +21,9 @@ class ForecastDay(BaseModel):
     current_temperature: float
     icon: str
     description: str
+    moon_phase_label: str | None = None
+    precipitation_total_mm: float = Field(default=0, ge=0)
+    precipitation_probability: int | None = Field(default=None, ge=0, le=100)
     hourly_forecast: list[HourlyForecastPoint] = Field(default_factory=list)
 
 

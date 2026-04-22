@@ -1,13 +1,13 @@
 import { renderForecastChart, renderForecastItems } from "./forecast-list.js";
 
-const FORECAST_TAB_LABELS = [
-  "Panoramica",
-  "Precipitazioni",
-  "Vento",
-  "Qualita' dell'aria",
-  "Umidita'",
-  "Nuvolosita'",
-  "...",
+const FORECAST_TABS = [
+  { id: "overview", label: "Panoramica", enabled: true },
+  { id: "precipitation", label: "Precipitazioni", enabled: true },
+  { id: "wind", label: "Vento", enabled: false },
+  { id: "air-quality", label: "Qualita' dell'aria", enabled: false },
+  { id: "humidity", label: "Umidita'", enabled: false },
+  { id: "cloudiness", label: "Nuvolosita'", enabled: false },
+  { id: "more", label: "...", enabled: false },
 ];
 
 export function renderForecastPanel() {
@@ -15,10 +15,13 @@ export function renderForecastPanel() {
     <section class="forecast-panel" aria-labelledby="forecast-panel-title">
       <div class="forecast-toolbar">
         <div class="forecast-toolbar-scroll">
-          <div class="feature-tabs" aria-label="Panoramica forecast">
+          <div class="feature-tabs" aria-label="Sezioni forecast">
             <span class="forecast-toolbar-label">Ogni ora</span>
-            ${FORECAST_TAB_LABELS.map(
-              (label, index) => `<span class="feature-tab${index === 0 ? " is-active" : ""}">${label}</span>`,
+            ${FORECAST_TABS.map(
+              (tab) =>
+                tab.enabled
+                  ? `<button type="button" class="feature-tab${tab.id === "overview" ? " is-active" : ""}" data-forecast-tab="${tab.id}" aria-pressed="${String(tab.id === "overview")}">${tab.label}</button>`
+                  : `<span class="feature-tab feature-tab--disabled" aria-disabled="true">${tab.label}</span>`,
             ).join("")}
           </div>
         </div>
@@ -41,9 +44,15 @@ export function renderForecastPanel() {
           <p class="forecast-panel-copy">Panello orario con vista termica, trend giornaliero e contesto astronomico.</p>
         </div>
 
-        <div class="forecast-panel-meta" aria-hidden="true">
-          <span class="forecast-panel-meta-label">Percepita</span>
-          <span class="forecast-panel-meta-switch"></span>
+        <div class="forecast-panel-meta">
+          <span id="forecast-feels-like-toggle-label" class="forecast-panel-meta-label">Percepita</span>
+          <button
+            type="button"
+            id="forecast-feels-like-toggle"
+            class="forecast-panel-meta-switch"
+            aria-labelledby="forecast-feels-like-toggle-label"
+            aria-pressed="false"
+          ></button>
         </div>
       </div>
 

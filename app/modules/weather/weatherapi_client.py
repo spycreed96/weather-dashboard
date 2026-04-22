@@ -450,18 +450,80 @@ async def get_weatherapi_city_suggestions(client: httpx.AsyncClient, query: str,
     return suggestions
 
 
+def normalize_probability(*values) -> int | None:
+    probabilities: list[int] = []
+    for value in values:
+        if value is None or value == "":
+            continue
+
+        try:
+            probabilities.append(round(float(value)))
+        except (TypeError, ValueError):
+            continue
+
+    if not probabilities:
+        return None
+
+    return max(0, min(100, max(probabilities)))
+
+
+def classify_precipitation_type(
+    precipitation_mm: float,
+    rain_probability: int | None,
+    snow_probability: int | None,
+    will_rain: bool = False,
+    will_snow: bool = False,
+) -> str:
+    if precipitation_mm <= 0:
+        return "none"
+
+    has_rain = will_rain or (rain_probability or 0) > 0
+    has_snow = will_snow or (snow_probability or 0) > 0
+
+    if has_rain and has_snow:
+        return "mixed"
+
+    if has_snow:
+        return "snow"
+
+    return "rain"
+
+
+def normalize_weatherapi_flag(value) -> bool:
+    if isinstance(value, bool):
+        return value
+
+    if value is None:
+        return False
+
+    return str(value).strip().lower() in {"1", "true", "yes"}
+
+
 def build_hour_entry_from_weatherapi(hour_payload: dict) -> dict | None:
     local_time = parse_weatherapi_datetime(hour_payload.get("time"))
     if local_time is None:
         return None
 
     condition = hour_payload.get("condition", {})
+    precipitation_mm = round(float(hour_payload.get("precip_mm") or 0), 2)
+    rain_probability = normalize_probability(hour_payload.get("chance_of_rain"))
+    snow_probability = normalize_probability(hour_payload.get("chance_of_snow"))
     return {
         "timestamp": hour_payload.get("time_epoch") or int(local_time.timestamp()),
         "sort_key": local_time.hour + (local_time.minute / 60),
         "hour": local_time.hour,
         "time_label": local_time.strftime("%H:%M"),
         "temperature": round(hour_payload.get("temp_c", 0)),
+        "feels_like": round(hour_payload.get("feelslike_c")) if hour_payload.get("feelslike_c") is not None else None,
+        "precipitation_mm": precipitation_mm,
+        "precipitation_probability": normalize_probability(rain_probability, snow_probability),
+        "precipitation_type": classify_precipitation_type(
+            precipitation_mm,
+            rain_probability,
+            snow_probability,
+            normalize_weatherapi_flag(hour_payload.get("will_it_rain")),
+            normalize_weatherapi_flag(hour_payload.get("will_it_snow")),
+        ),
         "icon": normalize_weatherapi_icon(condition.get("icon")),
         "description": condition.get("text", ""),
         "pressure": round(hour_payload.get("pressure_mb")) if hour_payload.get("pressure_mb") is not None else None,
@@ -476,12 +538,17 @@ def build_display_hour_entries(hourly_payloads: list[dict]) -> list[dict]:
 
 def build_current_hour_entry(current_payload: dict, current_local_dt: datetime) -> dict:
     condition = current_payload.get("condition", {})
+    precipitation_mm = round(float(current_payload.get("precip_mm") or 0), 2)
     return {
         "timestamp": current_payload.get("last_updated_epoch") or int(current_local_dt.timestamp()),
         "sort_key": current_local_dt.hour + (current_local_dt.minute / 60),
         "hour": current_local_dt.hour,
         "time_label": current_local_dt.strftime("%H:%M"),
         "temperature": round(current_payload.get("temp_c", 0)),
+        "feels_like": round(current_payload.get("feelslike_c")) if current_payload.get("feelslike_c") is not None else None,
+        "precipitation_mm": precipitation_mm,
+        "precipitation_probability": None,
+        "precipitation_type": "rain" if precipitation_mm > 0 else "none",
         "icon": normalize_weatherapi_icon(condition.get("icon")),
         "description": condition.get("text", ""),
         "is_now": True,
@@ -576,6 +643,12 @@ async def get_yesterday_forecast_day(
         if closest_hour
         else day_payload.get("avgtemp_c", day_payload.get("maxtemp_c", 0))
     )
+    precipitation_total_mm = round(float(day_payload.get("totalprecip_mm") or 0), 2)
+    precipitation_probability = normalize_probability(
+        day_payload.get("daily_chance_of_rain"),
+        day_payload.get("daily_chance_of_snow"),
+    )
+    astronomy_context = build_astronomy_context(forecast_day.get("astro"), yesterday_date, current_local_dt)
 
     return build_forecast_day(
         yesterday_date,
@@ -585,6 +658,9 @@ async def get_yesterday_forecast_day(
         icon,
         description,
         build_hourly_forecast_points(display_entries),
+        moon_phase_label=astronomy_context.get("moon_phase_label"),
+        precipitation_total_mm=precipitation_total_mm,
+        precipitation_probability=precipitation_probability,
     )
 
 
@@ -622,6 +698,7 @@ def build_forecast_days(
 
         hourly_payloads = forecast_day.get("hour", [])
         day_payload = forecast_day.get("day", {})
+        day_astronomy_context = build_astronomy_context(forecast_day.get("astro"), target_date, current_local_dt)
         reference_dt = datetime.combine(target_date, current_local_dt.time())
         closest_hour = get_closest_hour_entry(hourly_payloads, reference_dt)
 
@@ -629,6 +706,11 @@ def build_forecast_days(
         icon = normalize_weatherapi_icon(day_condition.get("icon"))
         description = day_condition.get("text", "")
         current_like_temperature = day_payload.get("avgtemp_c", day_payload.get("maxtemp_c", 0))
+        precipitation_total_mm = round(float(day_payload.get("totalprecip_mm") or 0), 2)
+        precipitation_probability = normalize_probability(
+            day_payload.get("daily_chance_of_rain"),
+            day_payload.get("daily_chance_of_snow"),
+        )
 
         if closest_hour:
             hour_condition = closest_hour.get("condition", {})
@@ -652,6 +734,9 @@ def build_forecast_days(
                 icon,
                 description,
                 build_hourly_forecast_points(display_entries),
+                moon_phase_label=day_astronomy_context.get("moon_phase_label"),
+                precipitation_total_mm=precipitation_total_mm,
+                precipitation_probability=precipitation_probability,
             )
         )
 
