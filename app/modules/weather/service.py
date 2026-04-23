@@ -4,25 +4,26 @@ from datetime import datetime
 import httpx
 
 from core.config import MAX_FORECAST_DAYS
-from modules.weather.forecast_builders import calculate_dew_point
-from modules.weather.open_meteo_forecast import build_open_meteo_forecast_days, fetch_open_meteo_forecast
-from modules.weather.open_meteo_pollen import get_pollen_metrics
-from modules.weather.schemas import CitySuggestion, WeatherResponse
-from modules.weather.weatherapi_client import (
-    build_air_quality_metrics,
-    build_forecast_days,
-    ensure_weather_api_configured,
-    fetch_weatherapi_forecast,
-    get_country_metadata,
-    get_weatherapi_city_suggestions,
-    get_yesterday_forecast_day,
-    normalize_weatherapi_icon,
-    parse_weatherapi_datetime,
-)
 from core.exceptions import (
     WeatherConfigurationError,
     WeatherInputError,
     WeatherProviderError,
+)
+from modules.weather.air_quality import build_air_quality_metrics
+from modules.weather.forecast_builders import calculate_dew_point
+from modules.weather.http_client import (
+    ensure_weather_api_configured,
+    fetch_weatherapi_forecast,
+    get_weatherapi_city_suggestions,
+)
+from modules.weather.open_meteo_forecast import build_open_meteo_forecast_days, fetch_open_meteo_forecast
+from modules.weather.open_meteo_pollen import get_pollen_metrics
+from modules.weather.parse_utils import normalize_weatherapi_icon, parse_weatherapi_datetime
+from modules.weather.schemas import CitySuggestion, WeatherResponse
+from modules.weather.weatherapi_client import (
+    build_forecast_days,
+    get_country_metadata,
+    get_yesterday_forecast_day,
 )
 
 DEFAULT_CITY = "Catanzaro"

@@ -1,4 +1,65 @@
+from typing import Any, TypedDict
+
 from pydantic import BaseModel, Field
+
+
+WeatherApiPayload = dict[str, Any]
+
+
+class WeatherApiSearchResult(TypedDict, total=False):
+    name: str
+    region: str
+    country: str
+    lat: float
+    lon: float
+
+
+class CitySuggestionPayload(TypedDict):
+    name: str
+    region_country: str
+    full_name: str
+
+
+class HourEntry(TypedDict, total=False):
+    timestamp: int
+    sort_key: float
+    hour: int
+    time_label: str
+    temperature: float
+    feels_like: float | None
+    precipitation_mm: float
+    precipitation_probability: int | None
+    precipitation_type: str
+    wind_speed_kph: float
+    wind_gust_kph: float | None
+    wind_direction: int | None
+    wind_direction_label: str | None
+    icon: str
+    description: str
+    pressure: int | None
+    is_now: bool
+
+
+class AirQualityMetrics(TypedDict):
+    air_quality: str
+    air_quality_index: int | None
+    air_quality_primary_pollutant: str | None
+    air_quality_primary_pollutant_value: float | None
+    air_quality_primary_pollutant_unit: str | None
+
+
+class AstronomyContext(TypedDict):
+    sunrise_time: str | None
+    sunset_time: str | None
+    sun_visibility_minutes: int | None
+    sun_progress: float | None
+    moonrise_time: str | None
+    moonset_time: str | None
+    moon_visibility_minutes: int | None
+    moon_phase_label: str | None
+    moon_illumination: int | None
+    next_full_moon_date: str | None
+    moon_progress: float | None
 
 
 class HourlyForecastPoint(BaseModel):

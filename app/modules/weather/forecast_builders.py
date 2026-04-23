@@ -2,16 +2,9 @@ import math
 from datetime import timedelta
 
 from modules.weather.schemas import ForecastDay, HourlyForecastPoint
+from modules.weather.constants import WEEKDAY_LABELS
+from modules.weather.parse_utils import normalize_probability, normalize_direction
 
-WEEKDAY_LABELS = (
-    "lunedi",
-    "martedi",
-    "mercoledi",
-    "giovedi",
-    "venerdi",
-    "sabato",
-    "domenica",
-)
 def get_day_label(target_date, current_date) -> str:
     if target_date == current_date - timedelta(days=1):
         return "Ieri"
@@ -29,24 +22,7 @@ def calculate_dew_point(temperature_celsius: float, humidity: int | float) -> fl
     return round(dew_point)
 
 
-def normalize_probability(value) -> int | None:
-    if value is None or value == "":
-        return None
-
-    try:
-        return max(0, min(100, round(float(value))))
-    except (TypeError, ValueError):
-        return None
-
-
-def normalize_direction(value) -> int | None:
-    if value is None or value == "":
-        return None
-
-    try:
-        return max(0, min(360, round(float(value))))
-    except (TypeError, ValueError):
-        return None
+ 
 
 
 def build_hourly_forecast_points(entries: list[dict]) -> list[HourlyForecastPoint]:
