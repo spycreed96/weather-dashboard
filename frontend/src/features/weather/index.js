@@ -699,7 +699,8 @@ function bindSearchInteractions(elements, state) {
       return;
     }
 
-    state.keepSearchInputEmptyOnMount = false;
+    state.keepSearchInputEmptyOnMount = true;
+    elements.input.value = "";
     abortSuggestionRequest(state);
     hideSuggestions(elements);
     void fetchAndRenderWeather(city, elements, state);
@@ -711,8 +712,8 @@ function bindSearchInteractions(elements, state) {
       return;
     }
 
-    elements.input.value = item.dataset.city || "";
-    state.keepSearchInputEmptyOnMount = false;
+    state.keepSearchInputEmptyOnMount = true;
+    elements.input.value = "";
     abortSuggestionRequest(state);
     hideSuggestions(elements);
     void fetchAndRenderWeather(item.dataset.query || item.dataset.city || "Catanzaro", elements, state);
@@ -772,11 +773,8 @@ function renderWeather(elements, state, data) {
   }
 
   if (elements.input) {
-    if (!state.keepSearchInputEmptyOnMount) {
-      elements.input.value = state.activeQuery;
-    }
-
-    state.keepSearchInputEmptyOnMount = false;
+    elements.input.value = "";
+    state.keepSearchInputEmptyOnMount = true;
   }
 
   elements.location.textContent = formatLocation(data);
@@ -972,7 +970,10 @@ function addToHistory(elements, state, data) {
   }, getWeatherListenerOptions());
 
   historyEntry.item.addEventListener("click", () => {
-    state.keepSearchInputEmptyOnMount = false;
+    state.keepSearchInputEmptyOnMount = true;
+    if (elements.input) {
+      elements.input.value = "";
+    }
     void fetchAndRenderWeather(historyQuery, elements, state);
   }, getWeatherListenerOptions());
 
