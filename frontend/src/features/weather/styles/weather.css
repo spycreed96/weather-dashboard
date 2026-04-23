@@ -119,7 +119,7 @@
   pointer-events: none;
   position: fixed;
   right: 16px;
-  top: 16px;
+  top: 47px;
   transform: translateY(-10px);
   transition: opacity 0.22s ease, transform 0.22s ease;
   z-index: 1200;
@@ -3177,7 +3177,7 @@
     font-size: 0.86rem;
     max-width: calc(100vw - 24px);
     right: 12px;
-    top: 12px;
+    top: 165px;
   }
 
   .weather-insight-card {

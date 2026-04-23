@@ -47,6 +47,7 @@ function createInitialWeatherState() {
     showPrecipitationAccumulation: true,
     showWindGusts: true,
     isRefreshPending: false,
+    pendingHistoryLabel: null,
     refreshToastTimer: null,
     selectedForecastDate: null,
     keepSearchInputEmptyOnMount: true,
@@ -136,6 +137,7 @@ export function unmountWeather() {
   weatherState.refreshToastTimer = null;
   weatherState.suggestionAbortController = null;
   weatherState.isRefreshPending = false;
+  weatherState.pendingHistoryLabel = null;
   destroyWeatherCharts(weatherRuntime.root);
   destroyCityMap(weatherState);
   weatherRuntime.root.replaceChildren();
@@ -655,7 +657,7 @@ function bindSearchInteractions(elements, state) {
 
       const cachedSuggestions = state.suggestionsCache.get(cacheKey);
       if (cachedSuggestions) {
-        renderSuggestions(elements, cachedSuggestions);
+        renderSuggestions(elements, filterSuggestionsForQuery(query, cachedSuggestions));
         return;
       }
 
@@ -671,8 +673,9 @@ function bindSearchInteractions(elements, state) {
           return;
         }
 
-        setSuggestionCacheEntry(state, cacheKey, suggestions);
-        renderSuggestions(elements, suggestions);
+        const filteredSuggestions = filterSuggestionsForQuery(query, suggestions);
+        setSuggestionCacheEntry(state, cacheKey, filteredSuggestions);
+        renderSuggestions(elements, filteredSuggestions);
       } catch (error) {
         if (error?.name === "AbortError") {
           return;
@@ -692,18 +695,32 @@ function bindSearchInteractions(elements, state) {
     }, CITY_SUGGESTION_DEBOUNCE_DELAY);
   }, getWeatherListenerOptions());
 
-  elements.form.addEventListener("submit", (event) => {
+  elements.form.addEventListener("submit", async (event) => {
     event.preventDefault();
     const city = elements.input.value.trim();
     if (!city) {
       return;
     }
 
+    cancelPendingSuggestionLookup(state);
+
+    const resolvedQuery = await resolveSubmittedSearchQuery(city, elements, state);
+    if (!weatherRuntime || weatherRuntime.elements !== elements) {
+      return;
+    }
+
+    if (!resolvedQuery) {
+      state.pendingHistoryLabel = null;
+      showRefreshToast(elements, state, "Nessuna località trovata per questa ricerca.", "error");
+      return;
+    }
+
+    hideRefreshToast(elements, state);
+    state.pendingHistoryLabel = getHistoryDisplayLabel(city);
     state.keepSearchInputEmptyOnMount = true;
     elements.input.value = "";
-    abortSuggestionRequest(state);
     hideSuggestions(elements);
-    void fetchAndRenderWeather(city, elements, state);
+    void fetchAndRenderWeather(resolvedQuery, elements, state);
   }, getWeatherListenerOptions());
 
   elements.suggestions.addEventListener("click", (event) => {
@@ -712,6 +729,7 @@ function bindSearchInteractions(elements, state) {
       return;
     }
 
+    state.pendingHistoryLabel = getHistoryDisplayLabel(item.dataset.city || item.dataset.query || "");
     state.keepSearchInputEmptyOnMount = true;
     elements.input.value = "";
     abortSuggestionRequest(state);
@@ -760,6 +778,7 @@ async function fetchAndRenderWeather(city, elements, state) {
     }
 
     console.error("Errore meteo:", error);
+    state.pendingHistoryLabel = null;
     resetWeatherPanel(elements, state);
     return false;
   }
@@ -777,7 +796,10 @@ function renderWeather(elements, state, data) {
     state.keepSearchInputEmptyOnMount = true;
   }
 
-  elements.location.textContent = formatLocation(data);
+  const preferredLocationName = getHistoryDisplayLabel(state.pendingHistoryLabel);
+  elements.location.textContent = preferredLocationName
+    ? formatLocation({ ...data, name: preferredLocationName })
+    : formatLocation(data);
   elements.temperature.dataset.celsius = data.temperature ?? "";
   updatePrimaryTemperatureDisplay(elements, data.temperature, state.temperatureUnit);
   elements.weatherSummary.textContent = formatWeatherSummary(data.description);
@@ -881,6 +903,7 @@ function formatWeatherSummary(description) {
 
 function renderSuggestions(elements, suggestions) {
   if (!suggestions.length) {
+    elements.suggestions.innerHTML = "";
     hideSuggestions(elements);
     return;
   }
@@ -900,6 +923,7 @@ function renderSuggestions(elements, suggestions) {
 }
 
 function hideSuggestions(elements) {
+  elements.suggestions.innerHTML = "";
   elements.suggestions.style.display = "none";
 }
 
@@ -933,7 +957,135 @@ function setSuggestionCacheEntry(state, cacheKey, suggestions) {
   }
 }
 
+function normalizeSuggestionValue(value) {
+  return String(value || "")
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, " ")
+    .trim();
+}
+
+function filterSuggestionsForQuery(query, suggestions) {
+  const normalizedQuery = normalizeSuggestionValue(query);
+  if (normalizedQuery.length < CITY_SUGGESTION_MIN_LENGTH) {
+    return [];
+  }
+
+  const queryTokens = normalizedQuery.split(" ").filter(Boolean);
+  const firstQueryToken = queryTokens[0] || normalizedQuery;
+  const collapsedQuery = normalizedQuery.replaceAll(" ", "");
+
+  return suggestions.filter((suggestion) => {
+    const city = normalizeSuggestionValue(suggestion.name);
+    const regionCountry = normalizeSuggestionValue(suggestion.region_country);
+    const fullName = normalizeSuggestionValue(suggestion.full_name);
+    const searchableText = [city, regionCountry, fullName].filter(Boolean).join(" ").trim();
+    const searchableTokens = searchableText.split(" ").filter(Boolean);
+    const cityTokens = city.split(" ").filter(Boolean);
+    const collapsedCity = city.replaceAll(" ", "");
+    const collapsedSearchable = searchableText.replaceAll(" ", "");
+
+    const cityMatchesFirstToken = cityTokens.some((token) => token.startsWith(firstQueryToken))
+      || city.startsWith(normalizedQuery)
+      || collapsedCity.startsWith(collapsedQuery);
+
+    if (!cityMatchesFirstToken) {
+      return false;
+    }
+
+    return queryTokens.every((token) => searchableTokens.some((candidate) => candidate.startsWith(token)))
+      || collapsedSearchable.includes(collapsedQuery);
+  });
+}
+
+function cancelPendingSuggestionLookup(state) {
+  state.suggestionRequestId += 1;
+  clearTimeout(state.debounceTimer);
+  weatherRuntime?.timers.delete(state.debounceTimer);
+  state.debounceTimer = null;
+  abortSuggestionRequest(state);
+}
+
+async function resolveSubmittedSearchQuery(query, elements, state) {
+  const normalizedQuery = getSuggestionCacheKey(query);
+  if (normalizedQuery.length < CITY_SUGGESTION_MIN_LENGTH) {
+    return query;
+  }
+
+  const suggestions = await getSuggestionsForQuery(query, elements, state);
+  if (!weatherRuntime || weatherRuntime.elements !== elements) {
+    return null;
+  }
+
+  if (!suggestions.length) {
+    return null;
+  }
+
+  const exactSuggestion = suggestions.find((item) => {
+    return getSuggestionCacheKey(item.name) === normalizedQuery || getSuggestionCacheKey(item.full_name) === normalizedQuery;
+  });
+
+  const resolvedSuggestion = exactSuggestion || suggestions[0];
+  return resolvedSuggestion.full_name || resolvedSuggestion.name || query;
+}
+
+async function getSuggestionsForQuery(query, elements, state) {
+  const cacheKey = getSuggestionCacheKey(query);
+  if (!cacheKey || cacheKey.length < CITY_SUGGESTION_MIN_LENGTH) {
+    return [];
+  }
+
+  const cachedSuggestions = state.suggestionsCache.get(cacheKey);
+  if (cachedSuggestions) {
+    return filterSuggestionsForQuery(query, cachedSuggestions);
+  }
+
+  try {
+    const suggestions = await fetchCitySuggestions(query, {
+      limit: CITY_SUGGESTION_LIMIT,
+    });
+
+    if (!weatherRuntime || weatherRuntime.elements !== elements) {
+      return [];
+    }
+
+    const filteredSuggestions = filterSuggestionsForQuery(query, suggestions);
+    setSuggestionCacheEntry(state, cacheKey, filteredSuggestions);
+    return filteredSuggestions;
+  } catch (error) {
+    console.error("Errore suggerimenti submit:", error);
+    return [];
+  }
+}
+
+function getHistoryDisplayLabel(value) {
+  const normalizedValue = String(value || "").trim();
+  if (!normalizedValue) {
+    return "";
+  }
+
+  if (/^-?\d+(\.\d+)?\s*,\s*-?\d+(\.\d+)?$/.test(normalizedValue)) {
+    return "";
+  }
+
+  return formatDisplayCityLabel(normalizedValue.split(",")[0].trim());
+}
+
+function formatDisplayCityLabel(value) {
+  const normalizedValue = String(value || "").trim().toLowerCase();
+  if (!normalizedValue) {
+    return "";
+  }
+
+  return normalizedValue.replace(/(^|[\s'-])([a-z])/g, (match, prefix, character) => {
+    return `${prefix}${character.toUpperCase()}`;
+  });
+}
+
 function addToHistory(elements, state, data) {
+  const historyDisplayLabel = getHistoryDisplayLabel(state.pendingHistoryLabel) || data.name;
+  state.pendingHistoryLabel = null;
   const historyQuery = data.country ? `${data.name}, ${data.country}` : data.name;
   const cityKey = historyQuery.trim().toLowerCase();
 
@@ -948,7 +1100,7 @@ function addToHistory(elements, state, data) {
 
   const historyEntry = createHistoryItem({
     cityKey,
-    cityName: data.name,
+    cityName: historyDisplayLabel,
     historyQuery,
     iconMarkup,
     temperatureLabel: formatTemperature(data.temperature, state.temperatureUnit),
@@ -970,6 +1122,7 @@ function addToHistory(elements, state, data) {
   }, getWeatherListenerOptions());
 
   historyEntry.item.addEventListener("click", () => {
+    state.pendingHistoryLabel = historyDisplayLabel;
     state.keepSearchInputEmptyOnMount = true;
     if (elements.input) {
       elements.input.value = "";
