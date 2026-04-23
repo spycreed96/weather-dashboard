@@ -1,8 +1,8 @@
 .app-page-shell {
-  --app-sidebar-rail-width: 44px;
+  --app-sidebar-rail-width: 47px;
   --app-sidebar-expanded-width: 250px;
   --app-sidebar-width: var(--app-sidebar-rail-width);
-  --app-content-left-offset: var(--app-sidebar-rail-width);
+  --header-action-size: var(--app-sidebar-rail-width);
   margin: 0;
   min-width: 0;
   width: 100%;
@@ -10,21 +10,29 @@
 
 .app-page-shell.is-sidebar-open {
   --app-sidebar-width: var(--app-sidebar-expanded-width);
-  --app-content-left-offset: var(--app-sidebar-expanded-width);
 }
 
-.app-route-view > :not(.app-header):not(.refresh-toast) {
-  margin-left: var(--app-content-left-offset);
-  transition: margin-left 0.24s ease, width 0.24s ease;
-  width: calc(100% - var(--app-content-left-offset));
+.app-route-view {
+  display: grid;
+  grid-template-columns: var(--app-sidebar-width) minmax(0, 1fr);
+  grid-template-rows: auto minmax(0, 1fr);
+  min-height: 100vh;
+  transition: grid-template-columns 0.24s ease;
+}
+
+.app-route-content {
+  grid-column: 2;
+  grid-row: 2;
+  min-width: 0;
+  width: 100%;
 }
 
 .app-header {
-  --header-action-size: var(--app-sidebar-rail-width);
   background: var(--surface-strong);
-  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
   box-shadow: 0 18px 40px rgba(15, 21, 49, 0.24);
-  margin-bottom: 12px;
+  grid-column: 2;
+  grid-row: 1;
+  margin-bottom: 0;
   min-height: var(--header-action-size);
   overflow: visible;
   padding: 0;
@@ -42,7 +50,7 @@
 }
 
 .app-header-primary {
-  align-items: stretch;
+  align-items: center;
   display: flex;
   flex: 0 0 auto;
   min-width: 0;
@@ -50,19 +58,18 @@
 
 .app-menu-toggle {
   align-items: center;
-  align-self: stretch;
   background: #151719;
   border: none;
   border-radius: 0;
-  border-right: 1px solid rgba(255, 255, 255, 0.06);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
   color: #ffffff;
   cursor: pointer;
-  display: inline-flex;
-  flex: 0 0 var(--app-sidebar-rail-width);
+  display: flex;
   flex-direction: column;
   gap: 5px;
   height: var(--header-action-size);
   justify-content: center;
+  justify-self: start;
   min-width: var(--app-sidebar-rail-width);
   padding: 0;
   transition: background 0.2s ease;
@@ -97,17 +104,21 @@
 }
 
 .app-sidebar {
+  align-content: start;
+  align-self: stretch;
   background: #1b1d1f;
   box-shadow: 18px 0 38px rgba(0, 0, 0, 0.26);
   color: #ffffff;
-  display: flex;
-  flex-direction: column;
-  inset: var(--header-action-size) auto 0 0;
+  display: grid;
+  grid-auto-rows: max-content;
+  grid-column: 1;
+  grid-row: 1 / -1;
+  min-width: 0;
   overflow: hidden;
-  position: fixed;
+  position: relative;
   transition: width 0.24s ease;
-  width: var(--app-sidebar-rail-width);
-  z-index: 1300;
+  width: var(--app-sidebar-width);
+  z-index: 2;
 }
 
 .app-sidebar.is-open {

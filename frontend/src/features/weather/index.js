@@ -1,12 +1,12 @@
 import { qs, qsa } from "../../shared/utils/dom.js";
-import { bindAppShell } from "../../shared/components/app-shell.js";
+import { bindAppShell, renderAppSidebar } from "../../shared/components/app-shell.js";
 import { formatCurrentTime } from "../../shared/utils/format-date.js";
 import { renderForecastChart, renderForecastItems } from "./components/forecast-list.js";
 import { initForecastDayChart } from "./components/forecast-day-chart.js";
 import { renderForecastPanel } from "./components/forecast-panel.js";
 import { initPrecipitationForecastChart, renderPrecipitationForecastChart } from "./components/forecast-precipitation-chart.js";
 import { initWindForecastChart, renderWindForecastChart } from "./components/forecast-wind-chart.js";
-import { renderSearchForm } from "./components/search-form.js";
+import { renderSearchForm, renderWeatherControls } from "./components/search-form.js";
 import { renderWeatherInsightsSection, renderWeatherInsightCards } from "./components/weather-insights.js";
 import { createHistoryItem } from "./components/weather-details.js";
 import { renderWeatherCard } from "./components/weather-card.js";
@@ -27,6 +27,10 @@ import {
 const HISTORY_SCROLL_STEP = 200;
 const FORECAST_SCROLL_STEP = 260;
 const REFRESH_TOAST_HIDE_DELAY = 2800;
+const CITY_SUGGESTION_DEBOUNCE_DELAY = 300;
+const CITY_SUGGESTION_LIMIT = 5;
+const CITY_SUGGESTION_MIN_LENGTH = 3;
+const CITY_SUGGESTION_CACHE_LIMIT = 50;
 
 function createInitialWeatherState() {
   return {
@@ -45,6 +49,10 @@ function createInitialWeatherState() {
     isRefreshPending: false,
     refreshToastTimer: null,
     selectedForecastDate: null,
+    keepSearchInputEmptyOnMount: true,
+    suggestionAbortController: null,
+    suggestionRequestId: 0,
+    suggestionsCache: new Map(),
     temperatureUnit: "celsius",
     weatherRequestId: 0,
   };
@@ -66,15 +74,20 @@ export function mountWeather(root) {
 
   root.innerHTML = `
     ${renderSearchForm()}
-    <div class="dashboard-content">
-      <p id="current-location" class="current-location">--</p>
-      ${renderWeatherCard()}
-      ${renderForecastPanel()}
-      ${renderWeatherInsightsSection()}
+    ${renderAppSidebar({ activePage: "forecast" })}
+    <div class="app-route-content">
+      ${renderWeatherControls()}
+      <div class="dashboard-content">
+        <p id="current-location" class="current-location">--</p>
+        ${renderWeatherCard()}
+        ${renderForecastPanel()}
+        ${renderWeatherInsightsSection()}
+      </div>
     </div>
   `;
 
   const state = weatherState;
+  state.keepSearchInputEmptyOnMount = true;
   const elements = getElements(root);
   weatherRuntime.elements = elements;
 
@@ -97,10 +110,6 @@ export function mountWeather(root) {
   bindSearchInteractions(elements, state);
   bindGlobalInteractions(elements);
 
-  if (elements.input) {
-    elements.input.value = state.activeQuery;
-  }
-
   if (state.currentWeather) {
     renderWeather(elements, state, state.currentWeather);
   } else {
@@ -115,6 +124,8 @@ export function unmountWeather() {
   }
 
   weatherState.weatherRequestId += 1;
+  weatherState.suggestionRequestId += 1;
+  abortSuggestionRequest(weatherState);
   weatherRuntime.controller.abort();
   weatherRuntime.shellBinding?.destroy?.();
   weatherRuntime.timers.forEach((timerId) => clearTimeout(timerId));
@@ -123,6 +134,7 @@ export function unmountWeather() {
   clearTimeout(weatherState.refreshToastTimer);
   weatherState.debounceTimer = null;
   weatherState.refreshToastTimer = null;
+  weatherState.suggestionAbortController = null;
   weatherState.isRefreshPending = false;
   destroyWeatherCharts(weatherRuntime.root);
   destroyCityMap(weatherState);
@@ -623,29 +635,61 @@ function bindForecastNavigation(elements, state) {
 
 function bindSearchInteractions(elements, state) {
   elements.input.addEventListener("input", (event) => {
+    const query = event.target.value.trim();
+    const cacheKey = getSuggestionCacheKey(query);
+    const requestId = ++state.suggestionRequestId;
+
     clearTimeout(state.debounceTimer);
     weatherRuntime?.timers.delete(state.debounceTimer);
+    abortSuggestionRequest(state);
+
+    if (query.length < CITY_SUGGESTION_MIN_LENGTH) {
+      hideSuggestions(elements);
+      return;
+    }
+
     state.debounceTimer = scheduleWeatherTimeout(async () => {
-      const query = event.target.value.trim();
-      if (query.length < 2) {
-        hideSuggestions(elements);
+      if (!weatherRuntime || weatherRuntime.elements !== elements || requestId !== state.suggestionRequestId) {
         return;
       }
 
+      const cachedSuggestions = state.suggestionsCache.get(cacheKey);
+      if (cachedSuggestions) {
+        renderSuggestions(elements, cachedSuggestions);
+        return;
+      }
+
+      state.suggestionAbortController = new AbortController();
+
       try {
-        const suggestions = await fetchCitySuggestions(query);
-        if (!weatherRuntime || weatherRuntime.elements !== elements) {
+        const suggestions = await fetchCitySuggestions(query, {
+          limit: CITY_SUGGESTION_LIMIT,
+          signal: state.suggestionAbortController.signal,
+        });
+
+        if (!weatherRuntime || weatherRuntime.elements !== elements || requestId !== state.suggestionRequestId) {
           return;
         }
+
+        setSuggestionCacheEntry(state, cacheKey, suggestions);
         renderSuggestions(elements, suggestions);
       } catch (error) {
-        if (!weatherRuntime || weatherRuntime.elements !== elements) {
+        if (error?.name === "AbortError") {
           return;
         }
+
+        if (!weatherRuntime || weatherRuntime.elements !== elements || requestId !== state.suggestionRequestId) {
+          return;
+        }
+
         console.error("Errore suggerimenti:", error);
         hideSuggestions(elements);
+      } finally {
+        if (state.suggestionAbortController?.signal.aborted || requestId === state.suggestionRequestId) {
+          state.suggestionAbortController = null;
+        }
       }
-    }, 300);
+    }, CITY_SUGGESTION_DEBOUNCE_DELAY);
   }, getWeatherListenerOptions());
 
   elements.form.addEventListener("submit", (event) => {
@@ -655,6 +699,8 @@ function bindSearchInteractions(elements, state) {
       return;
     }
 
+    state.keepSearchInputEmptyOnMount = false;
+    abortSuggestionRequest(state);
     hideSuggestions(elements);
     void fetchAndRenderWeather(city, elements, state);
   }, getWeatherListenerOptions());
@@ -666,6 +712,8 @@ function bindSearchInteractions(elements, state) {
     }
 
     elements.input.value = item.dataset.city || "";
+    state.keepSearchInputEmptyOnMount = false;
+    abortSuggestionRequest(state);
     hideSuggestions(elements);
     void fetchAndRenderWeather(item.dataset.query || item.dataset.city || "Catanzaro", elements, state);
   }, getWeatherListenerOptions());
@@ -724,7 +772,11 @@ function renderWeather(elements, state, data) {
   }
 
   if (elements.input) {
-    elements.input.value = state.activeQuery;
+    if (!state.keepSearchInputEmptyOnMount) {
+      elements.input.value = state.activeQuery;
+    }
+
+    state.keepSearchInputEmptyOnMount = false;
   }
 
   elements.location.textContent = formatLocation(data);
@@ -766,6 +818,7 @@ function renderWeather(elements, state, data) {
 function resetWeatherPanel(elements, state) {
   state.currentWeather = null;
   state.forecastData = [];
+  state.keepSearchInputEmptyOnMount = false;
   state.selectedForecastDate = null;
   elements.location.textContent = "--";
   elements.temperature.dataset.celsius = "";
@@ -852,6 +905,36 @@ function hideSuggestions(elements) {
   elements.suggestions.style.display = "none";
 }
 
+function abortSuggestionRequest(state) {
+  state.suggestionAbortController?.abort();
+  state.suggestionAbortController = null;
+}
+
+function getSuggestionCacheKey(query) {
+  return String(query || "").trim().toLowerCase();
+}
+
+function setSuggestionCacheEntry(state, cacheKey, suggestions) {
+  if (!cacheKey) {
+    return;
+  }
+
+  if (state.suggestionsCache.has(cacheKey)) {
+    state.suggestionsCache.delete(cacheKey);
+  }
+
+  state.suggestionsCache.set(cacheKey, suggestions);
+
+  if (state.suggestionsCache.size <= CITY_SUGGESTION_CACHE_LIMIT) {
+    return;
+  }
+
+  const oldestKey = state.suggestionsCache.keys().next().value;
+  if (oldestKey) {
+    state.suggestionsCache.delete(oldestKey);
+  }
+}
+
 function addToHistory(elements, state, data) {
   const historyQuery = data.country ? `${data.name}, ${data.country}` : data.name;
   const cityKey = historyQuery.trim().toLowerCase();
@@ -889,6 +972,7 @@ function addToHistory(elements, state, data) {
   }, getWeatherListenerOptions());
 
   historyEntry.item.addEventListener("click", () => {
+    state.keepSearchInputEmptyOnMount = false;
     void fetchAndRenderWeather(historyQuery, elements, state);
   }, getWeatherListenerOptions());
 

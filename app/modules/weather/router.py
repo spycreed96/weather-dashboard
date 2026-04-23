@@ -37,7 +37,7 @@ async def get_weather(city: str = Query("Catanzaro", min_length=1, max_length=80
 
 @router.get("/cities", response_model=list[CitySuggestion])
 async def get_city_suggestions(
-    q: str = Query(..., min_length=2, max_length=80),
+    q: str = Query(..., min_length=3, max_length=80),
     limit: int = Query(5, ge=1, le=10),
 ):
     try:

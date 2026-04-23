@@ -16,6 +16,11 @@ export function renderSearchForm() {
 
   return `
     ${renderAppHeader({ title: "Previsioni", activePage: "forecast", actions: headerActions })}
+  `;
+}
+
+export function renderWeatherControls() {
+  return `
     <div id="refresh-toast" class="refresh-toast" role="status" aria-live="polite" aria-atomic="true"></div>
     <div class="cities-history">
       <div class="history-wrapper">

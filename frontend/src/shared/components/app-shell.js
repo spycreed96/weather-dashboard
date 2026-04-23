@@ -35,27 +35,32 @@ function renderSidebarLink(pageId, label, activePage) {
   `;
 }
 
-export function renderAppHeader({ title, activePage = "forecast", actions = "" }) {
+export function renderAppSidebar({ activePage = "forecast" } = {}) {
+  return `
+    <aside id="app-sidebar" class="app-sidebar" aria-hidden="false">
+      <button id="app-menu-toggle" class="app-menu-toggle" type="button" title="Apri menu" aria-label="Apri menu" aria-controls="app-sidebar" aria-expanded="false">
+        <span class="app-menu-toggle-line" aria-hidden="true"></span>
+        <span class="app-menu-toggle-line" aria-hidden="true"></span>
+        <span class="app-menu-toggle-line" aria-hidden="true"></span>
+      </button>
+
+      <nav class="app-sidebar-nav" aria-label="Navigazione principale">
+        ${renderSidebarLink("forecast", "Previsioni", activePage)}
+        ${renderSidebarLink("favorites", "Preferiti", activePage)}
+      </nav>
+    </aside>
+  `;
+}
+
+export function renderAppHeader({ title, actions = "" }) {
   const actionsMarkup = actions.trim()
     ? `<div class="app-header-actions header-actions">${actions}</div>`
     : "";
 
   return `
     <header class="app-header search-header">
-      <aside id="app-sidebar" class="app-sidebar" aria-hidden="false">
-        <nav class="app-sidebar-nav" aria-label="Navigazione principale">
-          ${renderSidebarLink("forecast", "Previsioni", activePage)}
-          ${renderSidebarLink("favorites", "Preferiti", activePage)}
-        </nav>
-      </aside>
-
       <div class="app-header-content header-content">
         <div class="app-header-primary header-primary">
-          <button id="app-menu-toggle" class="app-menu-toggle" type="button" title="Apri menu" aria-label="Apri menu" aria-controls="app-sidebar" aria-expanded="false">
-            <span class="app-menu-toggle-line" aria-hidden="true"></span>
-            <span class="app-menu-toggle-line" aria-hidden="true"></span>
-            <span class="app-menu-toggle-line" aria-hidden="true"></span>
-          </button>
           <h1 class="app-header-title search-header-title">${title}</h1>
         </div>
 

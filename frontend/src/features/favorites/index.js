@@ -1,4 +1,4 @@
-import { bindAppShell, renderAppHeader } from "../../shared/components/app-shell.js";
+import { bindAppShell, renderAppHeader, renderAppSidebar } from "../../shared/components/app-shell.js";
 import { fetchWeather } from "../weather/services/weather-api.js";
 import { capitalizeText, formatLocation } from "../weather/utils/weather-formatters.js";
 import { renderAddFavoriteTile, renderFavoriteCard, renderFavoritesPage } from "./components/favorites-page.js";
@@ -112,7 +112,10 @@ export function mountFavorites(root) {
 
   root.innerHTML = `
     ${renderAppHeader({ title: "Preferiti", activePage: "favorites" })}
-    ${renderFavoritesPage()}
+    ${renderAppSidebar({ activePage: "favorites" })}
+    <div class="app-route-content">
+      ${renderFavoritesPage()}
+    </div>
   `;
 
   const elements = getElements(root);

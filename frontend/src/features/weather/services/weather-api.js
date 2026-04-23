@@ -7,7 +7,7 @@ export function fetchWeather(city = "Catanzaro") {
   return getJson(`${API_ROOT}/weather?city=${query}`);
 }
 
-export function fetchCitySuggestions(query, limit = 5) {
+export function fetchCitySuggestions(query, { limit = 5, signal } = {}) {
   const encodedQuery = encodeURIComponent(query);
-  return getJson(`${API_ROOT}/cities?q=${encodedQuery}&limit=${limit}`);
+  return getJson(`${API_ROOT}/cities?q=${encodedQuery}&limit=${limit}`, { signal });
 }
