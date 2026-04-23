@@ -19,6 +19,11 @@ from modules.weather.weatherapi_client import (
     normalize_weatherapi_icon,
     parse_weatherapi_datetime,
 )
+from core.exceptions import (
+    WeatherConfigurationError,
+    WeatherInputError,
+    WeatherProviderError,
+)
 
 DEFAULT_CITY = "Catanzaro"
 MAX_LOCATION_QUERY_LENGTH = 80
@@ -37,10 +42,10 @@ def _ensure_weather_api_ready() -> None:
 def _normalize_required_text(value: str | None, field_label: str) -> str:
     normalized_value = (value or "").strip()
     if not normalized_value:
-        raise WeatherInputError(f"{field_label} e obbligatorio.")
+        raise WeatherInputError(f"{field_label} è obbligatorio.")
 
     if len(normalized_value) > MAX_LOCATION_QUERY_LENGTH:
-        raise WeatherInputError(f"{field_label} e troppo lungo.")
+        raise WeatherInputError(f"{field_label} è troppo lungo.")
 
     return normalized_value
 
@@ -49,7 +54,7 @@ def _build_location_query(city: str | None, country: str | None = "") -> str:
     normalized_city = _normalize_required_text(city, "Il nome della citta")
     normalized_country = (country or "").strip()
     if len(normalized_country) > MAX_LOCATION_QUERY_LENGTH:
-        raise WeatherInputError("Il paese e troppo lungo.")
+        raise WeatherInputError("Il paese è troppo lungo.")
 
     return normalized_city if not normalized_country else f"{normalized_city},{normalized_country}"
 
@@ -69,7 +74,7 @@ def _normalize_suggestion_request(query: str | None, limit: int) -> tuple[str, i
         return "", _clamp_suggestion_limit(limit)
 
     if len(normalized_query) > MAX_LOCATION_QUERY_LENGTH:
-        raise WeatherInputError("La ricerca citta e troppo lunga.")
+        raise WeatherInputError("La ricerca città è troppo lunga.")
 
     return normalized_query, _clamp_suggestion_limit(limit)
 
