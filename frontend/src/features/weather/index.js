@@ -67,6 +67,7 @@ export function mountWeather(root) {
 
   const controller = new AbortController();
   weatherRuntime = {
+    activeHistoryItem: null,
     controller,
     root,
     shellBinding: null,
@@ -107,6 +108,7 @@ export function mountWeather(root) {
   bindForecastFeelsLikeToggle(elements, state);
   bindForecastTabs(elements, state);
   bindHistoryNavigation(elements);
+  bindHistoryDropdownLayer(elements);
   bindForecastNavigation(elements, state);
   bindSearchInteractions(elements, state);
   bindGlobalInteractions(elements);
@@ -131,6 +133,7 @@ export function unmountWeather() {
   weatherRuntime.shellBinding?.destroy?.();
   weatherRuntime.timers.forEach((timerId) => clearTimeout(timerId));
   weatherRuntime.timers.clear();
+  weatherRuntime.activeHistoryItem = null;
   clearTimeout(weatherState.debounceTimer);
   clearTimeout(weatherState.refreshToastTimer);
   weatherState.debounceTimer = null;
@@ -163,10 +166,13 @@ function getElements(root) {
     forecastTabs: qs(".feature-tabs", root),
     weatherInsightsCards: qs("#weather-insights-cards", root),
     form: qs("#search-form", root),
+    historyContainerShell: qs("#history-container-shell", root),
     historyContainer: qs("#history-container", root),
+    historyDropdownLayer: qs("#history-dropdown-layer", root),
     historyNav: qs(".history-nav", root),
     historyNext: qs("#history-next", root),
     historyPrev: qs("#history-prev", root),
+    historyRemoveButton: qs("#history-remove-button", root),
     humidity: qs("#humidity", root),
     icon: qs("#weather-icon", root),
     input: qs("#city-input", root),
@@ -587,6 +593,31 @@ function bindHistoryNavigation(elements) {
   elements.historyContainer.addEventListener("scroll", () => {
     closeAllHistoryDropdowns();
     closeTemperatureSettingsDropdown(elements);
+  }, getWeatherListenerOptions());
+}
+
+function bindHistoryDropdownLayer(elements) {
+  if (!elements.historyRemoveButton || !elements.historyContainer) {
+    return;
+  }
+
+  elements.historyRemoveButton.addEventListener("click", (event) => {
+    event.stopPropagation();
+
+    const activeHistoryItem = weatherRuntime?.activeHistoryItem;
+    if (!activeHistoryItem || !elements.historyContainer.contains(activeHistoryItem)) {
+      closeAllHistoryDropdowns();
+      return;
+    }
+
+    if (elements.historyContainer.children.length > 1) {
+      closeAllHistoryDropdowns();
+      activeHistoryItem.remove();
+      updateHistoryNavVisibility(elements);
+      return;
+    }
+
+    closeAllHistoryDropdowns();
   }, getWeatherListenerOptions());
 }
 
@@ -1110,18 +1141,11 @@ function addToHistory(elements, state, data) {
 
   historyEntry.menuButton.addEventListener("click", (event) => {
     event.stopPropagation();
-    toggleHistoryDropdown(historyEntry.menuButton, historyEntry.dropdown);
-  }, getWeatherListenerOptions());
-
-  historyEntry.removeButton.addEventListener("click", (event) => {
-    event.stopPropagation();
-    if (elements.historyContainer.children.length > 1) {
-      historyEntry.item.remove();
-      updateHistoryNavVisibility(elements);
-    }
+    toggleHistoryDropdown(historyEntry.menuButton, historyEntry.item, elements);
   }, getWeatherListenerOptions());
 
   historyEntry.item.addEventListener("click", () => {
+    closeAllHistoryDropdowns();
     state.pendingHistoryLabel = historyDisplayLabel;
     state.keepSearchInputEmptyOnMount = true;
     if (elements.input) {
@@ -1139,44 +1163,70 @@ function addToHistory(elements, state, data) {
 }
 
 function closeAllHistoryDropdowns() {
-  qsa(".history-dropdown.show", document).forEach((dropdown) => {
-    dropdown.classList.remove("show");
-  });
-}
+  if (weatherRuntime) {
+    weatherRuntime.activeHistoryItem = null;
+  }
 
-function toggleHistoryDropdown(menuButton, dropdown) {
-  if (dropdown.classList.contains("show")) {
-    dropdown.classList.remove("show");
+  qsa(".weather-history-item.is-dropdown-open", document).forEach((item) => {
+    item.classList.remove("is-dropdown-open");
+  });
+
+  qsa(".history-menu[aria-expanded=\"true\"]", document).forEach((button) => {
+    button.setAttribute("aria-expanded", "false");
+  });
+
+  const dropdownLayer = qs("#history-dropdown-layer");
+  if (!dropdownLayer) {
     return;
   }
 
-  closeAllHistoryDropdowns();
-  dropdown.classList.add("show");
-  positionHistoryDropdown(menuButton, dropdown);
+  dropdownLayer.classList.remove("show");
+  dropdownLayer.setAttribute("aria-hidden", "true");
+  dropdownLayer.style.removeProperty("left");
+  dropdownLayer.style.removeProperty("top");
+  dropdownLayer.style.removeProperty("visibility");
 }
 
-function positionHistoryDropdown(menuButton, dropdown) {
-  const spacing = 8;
-  const buttonRect = menuButton.getBoundingClientRect();
-  const dropdownRect = dropdown.getBoundingClientRect();
-
-  let left = buttonRect.right - dropdownRect.width;
-  let top = buttonRect.bottom + spacing;
-
-  if (left < spacing) {
-    left = spacing;
+function toggleHistoryDropdown(menuButton, historyItem, elements) {
+  if (!menuButton || !historyItem || !elements.historyDropdownLayer || !elements.historyContainerShell) {
+    return;
   }
 
-  if (left + dropdownRect.width > window.innerWidth - spacing) {
-    left = window.innerWidth - dropdownRect.width - spacing;
+  const isOpen = weatherRuntime?.activeHistoryItem === historyItem && elements.historyDropdownLayer.classList.contains("show");
+  closeAllHistoryDropdowns();
+
+  if (isOpen) {
+    return;
   }
 
-  if (top + dropdownRect.height > window.innerHeight - spacing) {
-    top = Math.max(spacing, buttonRect.top - dropdownRect.height - spacing);
+  if (weatherRuntime) {
+    weatherRuntime.activeHistoryItem = historyItem;
   }
 
-  dropdown.style.left = `${left}px`;
-  dropdown.style.top = `${top}px`;
+  historyItem.classList.add("is-dropdown-open");
+  menuButton.setAttribute("aria-expanded", "true");
+  elements.historyDropdownLayer.classList.add("show");
+  elements.historyDropdownLayer.setAttribute("aria-hidden", "false");
+  positionHistoryDropdown(historyItem, elements.historyDropdownLayer, elements.historyContainerShell);
+}
+
+function positionHistoryDropdown(historyItem, dropdownLayer, containerShell) {
+  dropdownLayer.style.left = "0px";
+  dropdownLayer.style.top = "0px";
+  dropdownLayer.style.visibility = "hidden";
+
+  const itemRect = historyItem.getBoundingClientRect();
+  const shellRect = containerShell.getBoundingClientRect();
+  const dropdownRect = dropdownLayer.getBoundingClientRect();
+  let left = itemRect.right - shellRect.left - dropdownRect.width;
+  const top = itemRect.bottom - shellRect.top;
+  const maxLeft = Math.max(0, shellRect.width - dropdownRect.width);
+
+  left = Math.max(0, Math.min(left, maxLeft));
+
+  dropdownLayer.style.left = `${left}px`;
+  dropdownLayer.style.top = `${top}px`;
+  dropdownLayer.style.visibility = "";
 }
 
 function updateHistoryNavVisibility(elements) {

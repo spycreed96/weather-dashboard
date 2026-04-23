@@ -203,14 +203,21 @@
   align-items: center;
   display: flex;
   gap: 12px;
+  overflow: visible;
   padding-inline: 32px;
   min-width: 0;
+}
+
+.history-container-shell {
+  flex: 1;
+  min-width: 0;
+  overflow: visible;
+  position: relative;
 }
 
 .history-container {
   border-radius: 22px;
   display: flex;
-  flex: 1;
   gap: 12px;
   min-width: 0;
   overflow-x: auto;
@@ -226,9 +233,11 @@
 }
 
 .history-nav {
+  align-self: flex-start;
   display: none;
   flex-shrink: 0;
   gap: 8px;
+  margin-top: 12px;
 }
 
 .history-nav.show {
@@ -256,10 +265,12 @@
 }
 
 .history-unit-toggle {
+  align-self: flex-start;
   flex-shrink: 0;
   font-size: 1rem;
   font-weight: 700;
   height: 40px;
+  margin-top: 12px;
   min-width: 56px;
   padding: 0 12px;
 }
@@ -2849,7 +2860,7 @@
   gap: 10px;
   justify-content: center;
   min-width: 140px;
-  padding: 4px 20px;
+  padding: 4px 48px 4px 20px;
   position: relative;
   transition: var(--transition);
 }
@@ -2861,17 +2872,24 @@
   box-shadow: 0 12px 24px rgba(22, 34, 72, 0.18);
 }
 
+.weather-history-item.is-dropdown-open {
+  z-index: 20;
+}
+
 .history-menu {
   background: transparent;
   border: none;
+  border-radius: 50%;
   color: var(--text);
   cursor: pointer;
   display: grid;
   font-size: 1.2rem;
   height: 32px;
   place-items: center;
+  position: absolute;
   right: 10px;
-  top: 10px;
+  top: 50%;
+  transform: translateY(-50%);
   width: 32px;
 }
 
@@ -2886,11 +2904,9 @@
   border-radius: 12px;
   box-shadow: 0 12px 24px rgba(0, 0, 0, 0.14);
   display: none;
-  left: 0;
-  min-width: 150px;
-  position: fixed;
-  top: 0;
-  z-index: 1000;
+  min-width: max-content;
+  position: absolute;
+  z-index: 30;
 }
 
 .history-dropdown.show {
@@ -2902,9 +2918,11 @@
   border: none;
   color: var(--text);
   cursor: pointer;
+  display: block;
   font-size: 0.95rem;
-  padding: 10px 12px;
+  padding: 10px 14px;
   text-align: left;
+  white-space: nowrap;
   width: 100%;
 }
 
@@ -3006,9 +3024,12 @@
     padding-inline: 16px;
   }
 
-  .history-container {
+  .history-container-shell {
     flex-basis: 100%;
     order: 3;
+  }
+
+  .history-container {
     padding-top: 0;
   }
 

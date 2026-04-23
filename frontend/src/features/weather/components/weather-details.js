@@ -35,20 +35,15 @@ export function renderWeatherDetails() {
 export function createHistoryItem({ cityKey, cityName, historyQuery, iconMarkup, temperatureLabel, temperatureMarkup, rawTemperature }) {
   const item = htmlToElement(`
     <div class="weather-history-item" data-city-key="${cityKey}" data-city="${cityName}" data-query="${historyQuery}">
-      <div class="history-dropdown">
-        <button type="button" class="history-remove">Rimuovi percorso</button>
-      </div>
       <div class="history-city-name">${cityName}</div>
       <div class="history-icon">${iconMarkup}</div>
       <div class="history-temperature" data-celsius="${rawTemperature}" aria-label="${temperatureLabel}">${temperatureMarkup}</div>
-      <button type="button" class="history-menu">...</button>
+      <button type="button" class="history-menu" aria-haspopup="true" aria-expanded="false" aria-label="Apri menu percorso">...</button>
     </div>
   `);
 
   return {
     item,
-    dropdown: item.querySelector(".history-dropdown"),
     menuButton: item.querySelector(".history-menu"),
-    removeButton: item.querySelector(".history-remove"),
   };
 }

@@ -24,7 +24,12 @@ export function renderWeatherControls() {
     <div id="refresh-toast" class="refresh-toast" role="status" aria-live="polite" aria-atomic="true"></div>
     <div class="cities-history">
       <div class="history-wrapper">
-        <div id="history-container" class="history-container"></div>
+        <div id="history-container-shell" class="history-container-shell">
+          <div id="history-container" class="history-container"></div>
+          <div id="history-dropdown-layer" class="history-dropdown" aria-hidden="true">
+            <button id="history-remove-button" type="button" class="history-remove">Rimuovi percorso</button>
+          </div>
+        </div>
         <div class="history-nav">
           <button id="history-prev" class="history-nav-btn history-nav-prev" type="button" title="Scorri indietro">&larr;</button>
           <button id="history-next" class="history-nav-btn history-nav-next" type="button" title="Scorri avanti">&rarr;</button>
