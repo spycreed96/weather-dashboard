@@ -1,5 +1,6 @@
 import { qs, qsa } from "../../shared/utils/dom.js";
 import { bindAppShell, renderAppSidebar } from "../../shared/components/app-shell.js";
+import { createCitySearchController } from "../../shared/services/city-search-controller.js";
 import { formatCurrentTime } from "../../shared/utils/format-date.js";
 import { renderForecastChart, renderForecastItems } from "./components/forecast-list.js";
 import { initForecastDayChart } from "./components/forecast-day-chart.js";
@@ -27,10 +28,6 @@ import {
 const HISTORY_SCROLL_STEP = 200;
 const FORECAST_SCROLL_STEP = 260;
 const REFRESH_TOAST_HIDE_DELAY = 2800;
-const CITY_SUGGESTION_DEBOUNCE_DELAY = 300;
-const CITY_SUGGESTION_LIMIT = 5;
-const CITY_SUGGESTION_MIN_LENGTH = 3;
-const CITY_SUGGESTION_CACHE_LIMIT = 50;
 
 function createInitialWeatherState() {
   return {
@@ -40,7 +37,6 @@ function createInitialWeatherState() {
     cityMapCircle: null,
     cityMapMarker: null,
     currentWeather: null,
-    debounceTimer: null,
     forecastData: [],
     showFeelsLikeForecast: false,
     precipitationRange: "24h",
@@ -51,9 +47,6 @@ function createInitialWeatherState() {
     refreshToastTimer: null,
     selectedForecastDate: null,
     keepSearchInputEmptyOnMount: true,
-    suggestionAbortController: null,
-    suggestionRequestId: 0,
-    suggestionsCache: new Map(),
     temperatureUnit: "celsius",
     weatherRequestId: 0,
   };
@@ -70,6 +63,7 @@ export function mountWeather(root) {
     activeHistoryItem: null,
     controller,
     root,
+    searchController: null,
     shellBinding: null,
     timers: new Set(),
   };
@@ -97,7 +91,7 @@ export function mountWeather(root) {
   updateTemperatureUnitButton(elements, state);
   weatherRuntime.shellBinding = bindAppShell(root, {
     onOpen: () => {
-      hideSuggestions(elements);
+      hideWeatherSuggestions();
       closeTemperatureSettingsDropdown(elements);
       closeAllHistoryDropdowns();
     },
@@ -127,18 +121,14 @@ export function unmountWeather() {
   }
 
   weatherState.weatherRequestId += 1;
-  weatherState.suggestionRequestId += 1;
-  abortSuggestionRequest(weatherState);
+  weatherRuntime.searchController?.destroy?.();
   weatherRuntime.controller.abort();
   weatherRuntime.shellBinding?.destroy?.();
   weatherRuntime.timers.forEach((timerId) => clearTimeout(timerId));
   weatherRuntime.timers.clear();
   weatherRuntime.activeHistoryItem = null;
-  clearTimeout(weatherState.debounceTimer);
   clearTimeout(weatherState.refreshToastTimer);
-  weatherState.debounceTimer = null;
   weatherState.refreshToastTimer = null;
-  weatherState.suggestionAbortController = null;
   weatherState.isRefreshPending = false;
   weatherState.pendingHistoryLabel = null;
   destroyWeatherCharts(weatherRuntime.root);
@@ -215,6 +205,10 @@ function scheduleWeatherTimeout(callback, delay) {
   return timerId;
 }
 
+function hideWeatherSuggestions() {
+  weatherRuntime?.searchController?.hideSuggestions?.();
+}
+
 function applySavedTheme(themeToggle) {
   const savedTheme = localStorage.getItem("theme") || "light";
   const isDark = savedTheme === "dark";
@@ -246,7 +240,7 @@ function bindRefreshButton(elements, state) {
     }
 
     const query = state.activeQuery || elements.input?.value.trim() || "Catanzaro";
-    hideSuggestions(elements);
+    hideWeatherSuggestions();
 
     state.isRefreshPending = true;
     setRefreshButtonPendingState(elements, true);
@@ -531,7 +525,6 @@ function positionTemperatureSettingsDropdown(toggleButton, dropdown) {
   }
 
   if (left + dropdownRect.width > window.innerWidth - spacing) {
-      // forecast panel removed: forecastChart, forecastList, forecastNext, forecastPrev
     top = Math.max(spacing, buttonRect.top - dropdownRect.height - spacing);
   }
 
@@ -667,112 +660,55 @@ function bindForecastNavigation(elements, state) {
 }
 
 function bindSearchInteractions(elements, state) {
-  elements.input.addEventListener("input", (event) => {
-    const query = event.target.value.trim();
-    const cacheKey = getSuggestionCacheKey(query);
-    const requestId = ++state.suggestionRequestId;
-
-    clearTimeout(state.debounceTimer);
-    weatherRuntime?.timers.delete(state.debounceTimer);
-    abortSuggestionRequest(state);
-
-    if (query.length < CITY_SUGGESTION_MIN_LENGTH) {
-      hideSuggestions(elements);
-      return;
-    }
-
-    state.debounceTimer = scheduleWeatherTimeout(async () => {
-      if (!weatherRuntime || weatherRuntime.elements !== elements || requestId !== state.suggestionRequestId) {
+  weatherRuntime.searchController?.destroy?.();
+  weatherRuntime.searchController = createCitySearchController({
+    fetchSuggestions: fetchCitySuggestions,
+    form: elements.form,
+    input: elements.input,
+    isStale: () => !weatherRuntime || weatherRuntime.elements !== elements,
+    onResolvedSubmit: ({ query, resolvedQuery }) => {
+      if (!weatherRuntime || weatherRuntime.elements !== elements) {
         return;
       }
 
-      const cachedSuggestions = state.suggestionsCache.get(cacheKey);
-      if (cachedSuggestions) {
-        renderSuggestions(elements, filterSuggestionsForQuery(query, cachedSuggestions));
+      hideRefreshToast(elements, state);
+      state.pendingHistoryLabel = getHistoryDisplayLabel(query);
+      state.keepSearchInputEmptyOnMount = true;
+      elements.input.value = "";
+      hideWeatherSuggestions();
+      void fetchAndRenderWeather(resolvedQuery, elements, state);
+    },
+    onSelectSuggestion: ({ city, query }) => {
+      if (!weatherRuntime || weatherRuntime.elements !== elements) {
         return;
       }
 
-      state.suggestionAbortController = new AbortController();
-
-      try {
-        const suggestions = await fetchCitySuggestions(query, {
-          limit: CITY_SUGGESTION_LIMIT,
-          signal: state.suggestionAbortController.signal,
-        });
-
-        if (!weatherRuntime || weatherRuntime.elements !== elements || requestId !== state.suggestionRequestId) {
-          return;
-        }
-
-        const filteredSuggestions = filterSuggestionsForQuery(query, suggestions);
-        setSuggestionCacheEntry(state, cacheKey, filteredSuggestions);
-        renderSuggestions(elements, filteredSuggestions);
-      } catch (error) {
-        if (error?.name === "AbortError") {
-          return;
-        }
-
-        if (!weatherRuntime || weatherRuntime.elements !== elements || requestId !== state.suggestionRequestId) {
-          return;
-        }
-
-        console.error("Errore suggerimenti:", error);
-        hideSuggestions(elements);
-      } finally {
-        if (state.suggestionAbortController?.signal.aborted || requestId === state.suggestionRequestId) {
-          state.suggestionAbortController = null;
-        }
+      state.pendingHistoryLabel = getHistoryDisplayLabel(city || query);
+      state.keepSearchInputEmptyOnMount = true;
+      elements.input.value = "";
+      hideWeatherSuggestions();
+      void fetchAndRenderWeather(query || city || "Catanzaro", elements, state);
+    },
+    onSuggestionsError: (error) => {
+      console.error("Errore suggerimenti:", error);
+    },
+    onUnresolvedSubmit: () => {
+      if (!weatherRuntime || weatherRuntime.elements !== elements) {
+        return;
       }
-    }, CITY_SUGGESTION_DEBOUNCE_DELAY);
-  }, getWeatherListenerOptions());
 
-  elements.form.addEventListener("submit", async (event) => {
-    event.preventDefault();
-    const city = elements.input.value.trim();
-    if (!city) {
-      return;
-    }
-
-    cancelPendingSuggestionLookup(state);
-
-    const resolvedQuery = await resolveSubmittedSearchQuery(city, elements, state);
-    if (!weatherRuntime || weatherRuntime.elements !== elements) {
-      return;
-    }
-
-    if (!resolvedQuery) {
       state.pendingHistoryLabel = null;
-      showRefreshToast(elements, state, "Nessuna località trovata per questa ricerca.", "error");
-      return;
-    }
-
-    hideRefreshToast(elements, state);
-    state.pendingHistoryLabel = getHistoryDisplayLabel(city);
-    state.keepSearchInputEmptyOnMount = true;
-    elements.input.value = "";
-    hideSuggestions(elements);
-    void fetchAndRenderWeather(resolvedQuery, elements, state);
-  }, getWeatherListenerOptions());
-
-  elements.suggestions.addEventListener("click", (event) => {
-    const item = event.target.closest(".suggestion-item");
-    if (!item) {
-      return;
-    }
-
-    state.pendingHistoryLabel = getHistoryDisplayLabel(item.dataset.city || item.dataset.query || "");
-    state.keepSearchInputEmptyOnMount = true;
-    elements.input.value = "";
-    abortSuggestionRequest(state);
-    hideSuggestions(elements);
-    void fetchAndRenderWeather(item.dataset.query || item.dataset.city || "Catanzaro", elements, state);
-  }, getWeatherListenerOptions());
+      showRefreshToast(elements, state, "Nessuna localita trovata per questa ricerca.", "error");
+    },
+    signal: weatherRuntime?.controller?.signal,
+    suggestions: elements.suggestions,
+  });
 }
 
 function bindGlobalInteractions(elements) {
   document.addEventListener("click", (event) => {
     if (!elements.searchHeader.contains(event.target)) {
-      hideSuggestions(elements);
+      hideWeatherSuggestions();
     }
 
     if (
@@ -930,164 +866,6 @@ function updateInlineDetailTemperature(element, value, unit) {
 
 function formatWeatherSummary(description) {
   return description ? capitalizeText(description) : "--";
-}
-
-function renderSuggestions(elements, suggestions) {
-  if (!suggestions.length) {
-    elements.suggestions.innerHTML = "";
-    hideSuggestions(elements);
-    return;
-  }
-
-  elements.suggestions.innerHTML = suggestions
-    .map(
-      (item) => `
-        <div class="suggestion-item" data-city="${item.name}" data-query="${item.full_name}">
-          <div class="suggestion-city">${item.name}</div>
-          <div class="suggestion-region">${item.region_country}</div>
-        </div>
-      `
-    )
-    .join("");
-
-  elements.suggestions.style.display = "block";
-}
-
-function hideSuggestions(elements) {
-  elements.suggestions.innerHTML = "";
-  elements.suggestions.style.display = "none";
-}
-
-function abortSuggestionRequest(state) {
-  state.suggestionAbortController?.abort();
-  state.suggestionAbortController = null;
-}
-
-function getSuggestionCacheKey(query) {
-  return String(query || "").trim().toLowerCase();
-}
-
-function setSuggestionCacheEntry(state, cacheKey, suggestions) {
-  if (!cacheKey) {
-    return;
-  }
-
-  if (state.suggestionsCache.has(cacheKey)) {
-    state.suggestionsCache.delete(cacheKey);
-  }
-
-  state.suggestionsCache.set(cacheKey, suggestions);
-
-  if (state.suggestionsCache.size <= CITY_SUGGESTION_CACHE_LIMIT) {
-    return;
-  }
-
-  const oldestKey = state.suggestionsCache.keys().next().value;
-  if (oldestKey) {
-    state.suggestionsCache.delete(oldestKey);
-  }
-}
-
-function normalizeSuggestionValue(value) {
-  return String(value || "")
-    .normalize("NFD")
-    .replace(/[\u0300-\u036f]/g, "")
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, " ")
-    .trim();
-}
-
-function filterSuggestionsForQuery(query, suggestions) {
-  const normalizedQuery = normalizeSuggestionValue(query);
-  if (normalizedQuery.length < CITY_SUGGESTION_MIN_LENGTH) {
-    return [];
-  }
-
-  const queryTokens = normalizedQuery.split(" ").filter(Boolean);
-  const firstQueryToken = queryTokens[0] || normalizedQuery;
-  const collapsedQuery = normalizedQuery.replaceAll(" ", "");
-
-  return suggestions.filter((suggestion) => {
-    const city = normalizeSuggestionValue(suggestion.name);
-    const regionCountry = normalizeSuggestionValue(suggestion.region_country);
-    const fullName = normalizeSuggestionValue(suggestion.full_name);
-    const searchableText = [city, regionCountry, fullName].filter(Boolean).join(" ").trim();
-    const searchableTokens = searchableText.split(" ").filter(Boolean);
-    const cityTokens = city.split(" ").filter(Boolean);
-    const collapsedCity = city.replaceAll(" ", "");
-    const collapsedSearchable = searchableText.replaceAll(" ", "");
-
-    const cityMatchesFirstToken = cityTokens.some((token) => token.startsWith(firstQueryToken))
-      || city.startsWith(normalizedQuery)
-      || collapsedCity.startsWith(collapsedQuery);
-
-    if (!cityMatchesFirstToken) {
-      return false;
-    }
-
-    return queryTokens.every((token) => searchableTokens.some((candidate) => candidate.startsWith(token)))
-      || collapsedSearchable.includes(collapsedQuery);
-  });
-}
-
-function cancelPendingSuggestionLookup(state) {
-  state.suggestionRequestId += 1;
-  clearTimeout(state.debounceTimer);
-  weatherRuntime?.timers.delete(state.debounceTimer);
-  state.debounceTimer = null;
-  abortSuggestionRequest(state);
-}
-
-async function resolveSubmittedSearchQuery(query, elements, state) {
-  const normalizedQuery = getSuggestionCacheKey(query);
-  if (normalizedQuery.length < CITY_SUGGESTION_MIN_LENGTH) {
-    return query;
-  }
-
-  const suggestions = await getSuggestionsForQuery(query, elements, state);
-  if (!weatherRuntime || weatherRuntime.elements !== elements) {
-    return null;
-  }
-
-  if (!suggestions.length) {
-    return null;
-  }
-
-  const exactSuggestion = suggestions.find((item) => {
-    return getSuggestionCacheKey(item.name) === normalizedQuery || getSuggestionCacheKey(item.full_name) === normalizedQuery;
-  });
-
-  const resolvedSuggestion = exactSuggestion || suggestions[0];
-  return resolvedSuggestion.full_name || resolvedSuggestion.name || query;
-}
-
-async function getSuggestionsForQuery(query, elements, state) {
-  const cacheKey = getSuggestionCacheKey(query);
-  if (!cacheKey || cacheKey.length < CITY_SUGGESTION_MIN_LENGTH) {
-    return [];
-  }
-
-  const cachedSuggestions = state.suggestionsCache.get(cacheKey);
-  if (cachedSuggestions) {
-    return filterSuggestionsForQuery(query, cachedSuggestions);
-  }
-
-  try {
-    const suggestions = await fetchCitySuggestions(query, {
-      limit: CITY_SUGGESTION_LIMIT,
-    });
-
-    if (!weatherRuntime || weatherRuntime.elements !== elements) {
-      return [];
-    }
-
-    const filteredSuggestions = filterSuggestionsForQuery(query, suggestions);
-    setSuggestionCacheEntry(state, cacheKey, filteredSuggestions);
-    return filteredSuggestions;
-  } catch (error) {
-    console.error("Errore suggerimenti submit:", error);
-    return [];
-  }
 }
 
 function getHistoryDisplayLabel(value) {

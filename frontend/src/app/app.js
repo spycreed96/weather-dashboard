@@ -14,7 +14,8 @@ const ROUTES = {
   },
 };
 
-let activeRoute = null;
+let activeRouteId = null;
+let activeRoutePath = null;
 let appRoot = null;
 let routeRoot = null;
 
@@ -40,28 +41,44 @@ export function handleRoute() {
     return;
   }
 
-  const route = getCurrentRoute();
+  const route = getCurrentRouteState();
 
-  if (!ROUTES[route]) {
+  if (!ROUTES[route.id]) {
     window.location.hash = DEFAULT_ROUTE;
     return;
   }
 
-  if (activeRoute === route) {
-    updateAppNavState(appRoot, route);
+  if (activeRouteId === route.id && activeRoutePath === route.fullPath) {
+    updateAppNavState(appRoot, route.id);
     return;
   }
 
-  if (activeRoute) {
-    ROUTES[activeRoute]?.unmount();
+  if (activeRouteId) {
+    ROUTES[activeRouteId]?.unmount();
   }
 
   routeRoot.replaceChildren();
-  activeRoute = route;
-  ROUTES[route].mount(routeRoot);
-  updateAppNavState(appRoot, route);
+  activeRouteId = route.id;
+  activeRoutePath = route.fullPath;
+  ROUTES[route.id].mount(routeRoot, route);
+  updateAppNavState(appRoot, route.id);
 }
 
-function getCurrentRoute() {
-  return window.location.hash.replace(/^#\/?/, "") || DEFAULT_ROUTE;
+function getCurrentRouteState() {
+  const normalizedPath = normalizeHashPath(window.location.hash);
+  const fullPath = normalizedPath || DEFAULT_ROUTE;
+  const [id = DEFAULT_ROUTE, ...pathSegments] = fullPath.split("/");
+
+  return {
+    fullPath,
+    id,
+    pathSegments,
+  };
+}
+
+function normalizeHashPath(hash) {
+  return String(hash || "")
+    .replace(/^#\/?/, "")
+    .replace(/\/{2,}/g, "/")
+    .replace(/^\/+|\/+$/g, "");
 }

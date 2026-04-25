@@ -1,9 +1,17 @@
 import { bindAppShell, renderAppHeader, renderAppSidebar } from "../../shared/components/app-shell.js";
-import { fetchWeather } from "../weather/services/weather-api.js";
+import { createCitySearchController } from "../../shared/services/city-search-controller.js";
+import { fetchCitySuggestions, fetchWeather } from "../weather/services/weather-api.js";
 import { capitalizeText, formatLocation } from "../weather/utils/weather-formatters.js";
-import { renderAddFavoriteTile, renderFavoriteCard, renderFavoritesPage } from "./components/favorites-page.js";
+import {
+  renderFavoriteCard,
+  renderFavoritesAddPage,
+  renderFavoritesAddPreview,
+  renderFavoritesEmptyState,
+  renderFavoritesPage,
+} from "./components/favorites-page.js";
 
 const FAVORITES_STORAGE_KEY = "weather-dashboard-favorite-locations";
+const FAVORITES_DEFAULT_VIEW = "overview";
 
 const PRIMARY_FALLBACK = {
   description: "In prevalenza nuvoloso",
@@ -89,40 +97,89 @@ const DEFAULT_FAVORITES = [
   },
 ];
 
+function createInitialFavoritesAddState() {
+  return {
+    candidate: null,
+    feedback: "",
+    pending: false,
+    requestId: 0,
+  };
+}
+
+function createDefaultFavoritesStore() {
+  return {
+    favorites: DEFAULT_FAVORITES.map((favorite) => ({ ...favorite })),
+    primaryLocation: { ...PRIMARY_FALLBACK },
+  };
+}
+
+const initialFavoritesStore = loadFavoritesStore();
+
 const favoritesState = {
-  addQuery: "",
-  favorites: loadFavorites(),
+  addView: createInitialFavoritesAddState(),
+  favorites: initialFavoritesStore.favorites,
   feedback: "",
-  isAdding: false,
-  pending: false,
-  primaryLocation: { ...PRIMARY_FALLBACK },
+  isHydratingOverview: false,
+  overviewRequestId: 0,
+  primaryLocation: initialFavoritesStore.primaryLocation,
+  syncStatus: "",
 };
 
 let favoritesRuntime = null;
 
-export function mountFavorites(root) {
+export function mountFavorites(root, routeState = null) {
   unmountFavorites();
+
+  const view = resolveFavoritesView(routeState);
+
+  if (!view) {
+    window.location.hash = "favorites";
+    return;
+  }
 
   const controller = new AbortController();
   favoritesRuntime = {
     controller,
+    elements: null,
     root,
+    searchController: null,
     shellBinding: null,
+    view,
   };
 
   root.innerHTML = `
     ${renderAppHeader({ title: "Preferiti", activePage: "favorites" })}
     ${renderAppSidebar({ activePage: "favorites" })}
     <div class="app-route-content">
-      ${renderFavoritesPage()}
+      ${view === "add" ? renderFavoritesAddPage() : renderFavoritesPage({ favoritesCount: favoritesState.favorites.length })}
     </div>
   `;
 
   const elements = getElements(root);
-  favoritesRuntime.shellBinding = bindAppShell(root);
-  bindFavoritesInteractions(root, elements, favoritesState, controller.signal);
-  renderFavorites(elements, favoritesState);
-  void hydratePrimaryLocation(elements, favoritesState);
+  favoritesRuntime.elements = elements;
+  favoritesRuntime.shellBinding = bindAppShell(root, {
+    onOpen: () => {
+      hideFavoritesSuggestions();
+    },
+  });
+
+  bindFavoritesInteractions(root, elements, favoritesState, controller.signal, view);
+
+  if (view === FAVORITES_DEFAULT_VIEW) {
+    favoritesState.isHydratingOverview = false;
+    favoritesState.syncStatus = "";
+    renderFavorites(elements, favoritesState);
+    void hydratePrimaryLocation(elements, favoritesState);
+    return;
+  }
+
+  favoritesState.feedback = "";
+  resetFavoritesAddState(favoritesState);
+  renderFavoritesAddView(elements, favoritesState);
+  bindFavoritesAddSearch(elements, favoritesState);
+  window.requestAnimationFrame(() => {
+    elements.addInput?.focus();
+  });
 }
 
 export function unmountFavorites() {
@@ -130,55 +187,118 @@ export function unmountFavorites() {
     return;
   }
 
+  favoritesRuntime.searchController?.destroy?.();
   favoritesRuntime.controller.abort();
   favoritesRuntime.shellBinding?.destroy?.();
-  favoritesState.pending = false;
-  favoritesState.isAdding = false;
-  favoritesState.feedback = "";
+  favoritesState.isHydratingOverview = false;
+  favoritesState.syncStatus = "";
+  resetFavoritesAddState(favoritesState);
   favoritesRuntime.root.replaceChildren();
   favoritesRuntime = null;
 }
 
 function getElements(root) {
   return {
+    addFeedback: root.querySelector("#favorites-add-feedback"),
+    addForm: root.querySelector("#favorites-search-form"),
+    addInput: root.querySelector("#favorites-city-input"),
+    addPreview: root.querySelector("#favorites-add-preview"),
+    addSearchShell: root.querySelector("#favorites-search-shell"),
+    addSuggestions: root.querySelector("#favorites-suggestions"),
+    count: root.querySelector("#favorites-count"),
     feedback: root.querySelector("#favorites-feedback"),
     grid: root.querySelector("#favorites-grid"),
     primaryLocation: root.querySelector("#favorites-primary-location"),
+    syncStatus: root.querySelector("#favorites-sync-status"),
   };
 }
 
-function bindFavoritesInteractions(root, elements, state, signal) {
+function bindFavoritesInteractions(root, elements, state, signal, view) {
   root.addEventListener("click", (event) => {
-    if (event.target.closest("#favorites-add-open")) {
-      state.isAdding = true;
-      state.feedback = "";
-      renderFavorites(elements, state);
-      root.querySelector("#favorites-add-input")?.focus();
+    if (event.target.closest("#favorites-route-back")) {
+      hideFavoritesSuggestions();
+      window.location.hash = "favorites";
       return;
     }
 
-    if (event.target.closest("#favorites-add-cancel")) {
-      state.isAdding = false;
-      state.addQuery = "";
+    if (view === FAVORITES_DEFAULT_VIEW && event.target.closest("#favorites-open-add-route")) {
       state.feedback = "";
-      renderFavorites(elements, state);
-    }
-  }, { signal });
-
-  root.addEventListener("input", (event) => {
-    if (event.target.id === "favorites-add-input") {
-      state.addQuery = event.target.value;
-    }
-  }, { signal });
-
-  root.addEventListener("submit", async (event) => {
-    if (event.target.id !== "favorites-add-form") {
+      window.location.hash = "favorites/add";
       return;
     }
 
-    event.preventDefault();
-    await addFavoriteLocation(elements, state);
+    if (view !== "add") {
+      return;
+    }
+
+    if (event.target.closest("#favorites-add-reset")) {
+      resetFavoritesAddState(state);
+      if (elements.addInput) {
+        elements.addInput.value = "";
+      }
+      hideFavoritesSuggestions();
+      renderFavoritesAddView(elements, state);
+      elements.addInput?.focus();
+      return;
+    }
+
+    if (event.target.closest("#favorites-add-confirm")) {
+      void confirmAddFavorite(elements, state);
+    }
   }, { signal });
+
+  if (view === "add") {
+    document.addEventListener("click", (event) => {
+      if (!elements.addSearchShell?.contains(event.target)) {
+        hideFavoritesSuggestions();
+      }
+    }, { signal });
+  }
+}
+
+function bindFavoritesAddSearch(elements, state) {
+  favoritesRuntime.searchController?.destroy?.();
+  favoritesRuntime.searchController = createCitySearchController({
+    fetchSuggestions: fetchCitySuggestions,
+    form: elements.addForm,
+    input: elements.addInput,
+    isStale: () => !isFavoritesViewActive(elements, "add"),
+    onResolvedSubmit: ({ resolvedQuery }) => {
+      hideFavoritesSuggestions();
+      void loadFavoritePreview(resolvedQuery, elements, state);
+    },
+    onSelectSuggestion: ({ query }) => {
+      if (elements.addInput) {
+        elements.addInput.value = query;
+      }
+      void loadFavoritePreview(query, elements, state);
+    },
+    onSuggestionsError: (error) => {
+      if (!isFavoritesViewActive(elements, "add")) {
+        return;
+      }
+
+      console.error("Preferiti: suggerimenti non disponibili", error);
+      hideFavoritesSuggestions();
+      state.addView.candidate = null;
+      state.addView.feedback = "Suggerimenti citta non disponibili in questo momento.";
+      state.addView.pending = false;
+      renderFavoritesAddView(elements, state);
+    },
+    onUnresolvedSubmit: () => {
+      if (!isFavoritesViewActive(elements, "add")) {
+        return;
+      }
+
+      hideFavoritesSuggestions();
+      state.addView.candidate = null;
+      state.addView.feedback = "Nessuna localita trovata per questa ricerca.";
+      state.addView.pending = false;
+      renderFavoritesAddView(elements, state);
+    },
+    signal: favoritesRuntime?.controller?.signal,
+    suggestions: elements.addSuggestions,
+  });
 }
 
 function renderFavorites(elements, state) {
@@ -186,13 +306,18 @@ function renderFavorites(elements, state) {
     elements.primaryLocation.innerHTML = renderFavoriteCard(state.primaryLocation, { primary: true });
   }
 
+  if (elements.count) {
+    elements.count.textContent = getFavoritesCountLabel(state.favorites.length);
+  }
+
   if (elements.grid) {
-    const cards = state.favorites.map((favorite) => renderFavoriteCard(favorite)).join("");
-    elements.grid.innerHTML = `${cards}${renderAddFavoriteTile({
-      isAdding: state.isAdding,
-      pending: state.pending,
-      query: state.addQuery,
-    })}`;
+    elements.grid.innerHTML = state.favorites.length
+      ? state.favorites.map((favorite) => renderFavoriteCard(favorite)).join("")
+      : renderFavoritesEmptyState();
+  }
+
+  if (elements.syncStatus) {
+    elements.syncStatus.textContent = state.syncStatus;
   }
 
   if (elements.feedback) {
@@ -200,61 +325,144 @@ function renderFavorites(elements, state) {
   }
 }
 
-async function hydratePrimaryLocation(elements, state) {
-  try {
-    const data = await fetchWeather(PRIMARY_FALLBACK.query);
+function renderFavoritesAddView(elements, state) {
+  if (elements.addFeedback) {
+    elements.addFeedback.textContent = state.addView.feedback;
+  }
 
-    if (!favoritesRuntime) {
-      return;
-    }
-
-    state.primaryLocation = createFavoriteFromWeather(data, PRIMARY_FALLBACK.query, PRIMARY_FALLBACK);
-    renderFavorites(elements, state);
-  } catch (error) {
-    console.warn("Preferiti: meteo localita principale non disponibile", error);
+  if (elements.addPreview) {
+    elements.addPreview.innerHTML = renderFavoritesAddPreview({
+      candidate: state.addView.candidate,
+      pending: state.addView.pending,
+    });
   }
 }
 
-async function addFavoriteLocation(elements, state) {
-  const query = state.addQuery.trim();
-
-  if (!query) {
-    state.feedback = "Inserisci una localita valida.";
-    renderFavorites(elements, state);
-    return;
-  }
-
-  if (state.favorites.some((favorite) => normalizeQuery(favorite.query) === normalizeQuery(query))) {
-    state.feedback = "Questa localita e gia tra i preferiti.";
-    renderFavorites(elements, state);
-    return;
-  }
-
-  state.pending = true;
-  state.feedback = "";
+async function hydratePrimaryLocation(elements, state) {
+  const requestId = state.overviewRequestId + 1;
+  state.overviewRequestId = requestId;
+  state.isHydratingOverview = true;
+  state.syncStatus = getOverviewSyncMessage(state);
   renderFavorites(elements, state);
 
-  let nextFavorite;
+  const currentPrimary = normalizePrimaryLocation(state.primaryLocation);
+
+  const [primaryResult, favoriteResults] = await Promise.all([
+    hydratePrimarySnapshot(currentPrimary),
+    Promise.all(state.favorites.map((favorite) => hydrateFavoriteSnapshot(favorite))),
+  ]);
+
+  if (!isFavoritesOverviewRequestActive(elements, state, requestId)) {
+    return;
+  }
+
+  state.primaryLocation = primaryResult.location;
+  state.favorites = favoriteResults.map((result) => result.favorite);
+  state.isHydratingOverview = false;
+
+  const didRefreshPrimary = primaryResult.refreshed;
+  const didRefreshFavorites = favoriteResults.some((result) => result.refreshed);
+  const failureCount = favoriteResults.filter((result) => !result.refreshed).length + (primaryResult.refreshed ? 0 : 1);
+  state.syncStatus = failureCount > 0
+    ? "Alcune localita mostrano ancora l'ultimo snapshot disponibile."
+    : "";
+
+  if (didRefreshPrimary || didRefreshFavorites) {
+    saveFavoritesStore(state);
+  }
+
+  renderFavorites(elements, state);
+}
+
+async function loadFavoritePreview(query, elements, state) {
+  const normalizedQuery = normalizeQuery(query);
+
+  if (!normalizedQuery) {
+    state.addView.candidate = null;
+    state.addView.feedback = "Inserisci una localita valida.";
+    state.addView.pending = false;
+    renderFavoritesAddView(elements, state);
+    return;
+  }
+
+  if (isDuplicateFavorite(state.favorites, query)) {
+    state.addView.candidate = null;
+    state.addView.feedback = "Questa localita e gia tra i preferiti.";
+    state.addView.pending = false;
+    renderFavoritesAddView(elements, state);
+    return;
+  }
+
+  const requestId = state.addView.requestId + 1;
+  state.addView.requestId = requestId;
+  state.addView.candidate = null;
+  state.addView.feedback = "";
+  state.addView.pending = true;
+  renderFavoritesAddView(elements, state);
+
+  let nextCandidate = null;
+  let nextFeedback = "";
 
   try {
     const data = await fetchWeather(query);
-    nextFavorite = createFavoriteFromWeather(data, query, { name: query });
+    nextCandidate = createFavoriteFromWeather(data, query, { name: query });
   } catch (error) {
-    console.warn("Preferiti: aggiungo la localita senza dati meteo live", error);
-    nextFavorite = createFallbackFavorite(query);
-  } finally {
-    if (!favoritesRuntime) {
-      return;
-    }
-
-    state.favorites = [...state.favorites, nextFavorite];
-    state.addQuery = "";
-    state.feedback = "";
-    state.isAdding = false;
-    state.pending = false;
-    saveFavorites(state.favorites);
-    renderFavorites(elements, state);
+    console.warn("Preferiti: anteprima localita non disponibile", error);
+    nextCandidate = createFallbackFavorite(query);
+    nextFeedback = "Meteo live non disponibile. Puoi comunque aggiungere la localita.";
   }
+
+  if (!isFavoritesAddViewActive(elements, state, requestId)) {
+    return;
+  }
+
+  if (isDuplicateFavorite(state.favorites, nextCandidate.query)) {
+    state.addView.candidate = null;
+    state.addView.feedback = "Questa localita e gia tra i preferiti.";
+    state.addView.pending = false;
+    renderFavoritesAddView(elements, state);
+    return;
+  }
+
+  state.addView.candidate = nextCandidate;
+  state.addView.feedback = nextFeedback;
+  state.addView.pending = false;
+  renderFavoritesAddView(elements, state);
+}
+
+async function confirmAddFavorite(elements, state) {
+  if (state.addView.pending) {
+    return;
+  }
+
+  const candidate = normalizeFavorite(state.addView.candidate);
+
+  if (!candidate) {
+    state.addView.feedback = "Cerca una localita prima di confermare l'aggiunta.";
+    renderFavoritesAddView(elements, state);
+    return;
+  }
+
+  if (isDuplicateFavorite(state.favorites, candidate.query)) {
+    state.addView.feedback = "Questa localita e gia tra i preferiti.";
+    renderFavoritesAddView(elements, state);
+    return;
+  }
+
+  state.addView.pending = true;
+  renderFavoritesAddView(elements, state);
+
+  state.favorites = [...state.favorites, candidate];
+  saveFavoritesStore(state);
+  state.feedback = `${candidate.name} aggiunta ai preferiti.`;
+
+  if (elements.addInput) {
+    elements.addInput.value = "";
+  }
+
+  hideFavoritesSuggestions();
+  resetFavoritesAddState(state);
+  window.location.hash = "favorites";
 }
 
 function createFavoriteFromWeather(data, query, fallback = {}) {
@@ -262,13 +470,13 @@ function createFavoriteFromWeather(data, query, fallback = {}) {
 
   return {
     description: capitalizeText(data.description || fallback.description || "Meteo disponibile"),
-    maxTemperature: today.max_temperature ?? fallback.maxTemperature ?? data.temperature,
-    minTemperature: fallback.minTemperature ?? today.current_temperature ?? data.feels_like,
+    maxTemperature: today.max_temperature ?? fallback.maxTemperature ?? data.temperature ?? null,
+    minTemperature: today.min_temperature ?? fallback.minTemperature ?? data.feels_like ?? null,
     name: formatLocation(data) || fallback.name || query,
     precipitationProbability: today.precipitation_probability ?? fallback.precipitationProbability ?? 0,
     query,
-    temperature: data.temperature ?? fallback.temperature,
-    windSpeed: data.wind_speed ?? fallback.windSpeed,
+    temperature: data.temperature ?? fallback.temperature ?? null,
+    windSpeed: data.wind_speed ?? fallback.windSpeed ?? null,
   };
 }
 
@@ -285,18 +493,76 @@ function createFallbackFavorite(query) {
   };
 }
 
-function loadFavorites() {
-  try {
-    const parsedFavorites = JSON.parse(localStorage.getItem(FAVORITES_STORAGE_KEY) || "null");
+async function hydratePrimarySnapshot(primaryLocation) {
+  const fallbackLocation = normalizePrimaryLocation(primaryLocation);
 
-    if (Array.isArray(parsedFavorites) && parsedFavorites.length) {
-      return parsedFavorites.map(normalizeFavorite).filter(Boolean);
+  try {
+    const data = await fetchWeather(fallbackLocation.query);
+
+    return {
+      location: createFavoriteFromWeather(data, fallbackLocation.query, fallbackLocation),
+      refreshed: true,
+    };
+  } catch (error) {
+    console.warn("Preferiti: meteo localita principale non disponibile", error);
+
+    return {
+      location: fallbackLocation,
+      refreshed: false,
+    };
+  }
+}
+
+async function hydrateFavoriteSnapshot(favorite) {
+  const fallbackFavorite = normalizeFavorite(favorite) || createFallbackFavorite(favorite?.query || "");
+
+  try {
+    const data = await fetchWeather(fallbackFavorite.query);
+
+    return {
+      favorite: createFavoriteFromWeather(data, fallbackFavorite.query, fallbackFavorite),
+      refreshed: true,
+    };
+  } catch (error) {
+    console.warn(`Preferiti: meteo non disponibile per ${fallbackFavorite.query}`, error);
+
+    return {
+      favorite: fallbackFavorite,
+      refreshed: false,
+    };
+  }
+}
+
+function loadFavoritesStore() {
+  const defaultStore = createDefaultFavoritesStore();
+
+  if (typeof localStorage === "undefined") {
+    return defaultStore;
+  }
+
+  try {
+    const parsedStore = JSON.parse(localStorage.getItem(FAVORITES_STORAGE_KEY) || "null");
+
+    if (Array.isArray(parsedStore)) {
+      return {
+        ...defaultStore,
+        favorites: parsedStore.map(normalizeFavorite).filter(Boolean),
+      };
+    }
+
+    if (parsedStore && typeof parsedStore === "object") {
+      return {
+        favorites: Array.isArray(parsedStore.favorites)
+          ? parsedStore.favorites.map(normalizeFavorite).filter(Boolean)
+          : defaultStore.favorites,
+        primaryLocation: normalizePrimaryLocation(parsedStore.primaryLocation),
+      };
     }
   } catch (error) {
     console.warn("Preferiti: preferiti salvati non validi", error);
   }
 
-  return DEFAULT_FAVORITES.map((favorite) => ({ ...favorite }));
+  return defaultStore;
 }
 
 function normalizeFavorite(favorite) {
@@ -320,9 +586,27 @@ function normalizeFavorite(favorite) {
   };
 }
 
-function saveFavorites(favorites) {
+function normalizePrimaryLocation(primaryLocation) {
+  if (!primaryLocation?.query) {
+    return { ...PRIMARY_FALLBACK };
+  }
+
+  return {
+    ...PRIMARY_FALLBACK,
+    ...primaryLocation,
+  };
+}
+
+function saveFavoritesStore({ favorites, primaryLocation }) {
+  if (typeof localStorage === "undefined") {
+    return;
+  }
+
   try {
-    localStorage.setItem(FAVORITES_STORAGE_KEY, JSON.stringify(favorites));
+    localStorage.setItem(FAVORITES_STORAGE_KEY, JSON.stringify({
+      favorites: Array.isArray(favorites) ? favorites.map(normalizeFavorite).filter(Boolean) : [],
+      primaryLocation: normalizePrimaryLocation(primaryLocation),
+    }));
   } catch (error) {
     console.warn("Preferiti: impossibile salvare i preferiti", error);
   }
@@ -330,4 +614,62 @@ function saveFavorites(favorites) {
 
 function normalizeQuery(value) {
   return String(value || "").trim().toLowerCase();
+}
+
+function getFavoritesCountLabel(count) {
+  return count === 1 ? "1 preferita" : `${count} preferite`;
+}
+
+function hideFavoritesSuggestions() {
+  favoritesRuntime?.searchController?.hideSuggestions?.();
+}
+
+function isDuplicateFavorite(favorites, query) {
+  return favorites.some((favorite) => normalizeQuery(favorite.query) === normalizeQuery(query));
+}
+
+function isFavoritesViewActive(elements, view) {
+  return Boolean(
+    favoritesRuntime
+    && favoritesRuntime.elements === elements
+    && favoritesRuntime.view === view,
+  );
+}
+
+function isFavoritesOverviewRequestActive(elements, state, requestId) {
+  return Boolean(
+    isFavoritesViewActive(elements, FAVORITES_DEFAULT_VIEW)
+    && state.overviewRequestId === requestId,
+  );
+}
+
+function isFavoritesAddViewActive(elements, state, requestId) {
+  return Boolean(
+    isFavoritesViewActive(elements, "add")
+    && state.addView.requestId === requestId,
+  );
+}
+
+function resetFavoritesAddState(state) {
+  state.addView = {
+    ...createInitialFavoritesAddState(),
+    requestId: (state.addView?.requestId || 0) + 1,
+  };
+}
+
+function resolveFavoritesView(routeState) {
+  const routeSegments = Array.isArray(routeState?.pathSegments) ? routeState.pathSegments : [];
+  const routeView = routeSegments[0] || FAVORITES_DEFAULT_VIEW;
+
+  if (routeView === FAVORITES_DEFAULT_VIEW || routeView === "add") {
+    return routeView;
+  }
+
+  return null;
+}
+
+function getOverviewSyncMessage(state) {
+  return state.favorites.length
+    ? "Aggiornamento meteo dei preferiti in corso..."
+    : "Aggiornamento localita principale in corso...";
 }
