@@ -47,6 +47,11 @@ export function renderFavoritesPage({ favoritesCount = 0 } = {}) {
       </div>
 
       <div id="favorites-grid" class="favorites-grid"></div>
+      <div id="favorites-context-menu" class="favorites-context-menu" aria-hidden="true">
+        <button id="favorites-remove-button" class="favorites-context-menu__action" type="button">
+          Rimuovi dai preferiti
+        </button>
+      </div>
       <p id="favorites-feedback" class="favorites-feedback" role="status" aria-live="polite"></p>
     </section>
   `;
@@ -96,11 +101,18 @@ export function renderFavoritesAddPage() {
   `;
 }
 
-export function renderFavoriteCard(location, { primary = false } = {}) {
-  const className = primary ? "favorite-card favorite-card--primary" : "favorite-card";
+export function renderFavoriteCard(location, { primary = false, contextMenu = false } = {}) {
+  const className = [
+    "favorite-card",
+    primary ? "favorite-card--primary" : "",
+    contextMenu ? "favorite-card--contextual" : "",
+  ].filter(Boolean).join(" ");
+  const queryAttribute = contextMenu && location?.query
+    ? ` data-favorite-query="${escapeHtml(location.query)}" data-favorite-name="${escapeHtml(location.name)}"`
+    : "";
 
   return `
-    <article class="${className}">
+    <article class="${className}"${queryAttribute}>
       <h3 class="favorite-card__title">${escapeHtml(location.name)}</h3>
       <div class="favorite-card__content">
         <p class="favorite-card__temperature">

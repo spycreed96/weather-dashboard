@@ -7,6 +7,7 @@ import {
   isPrimaryLocationQuery,
   normalizeFavorite,
   normalizePrimaryLocation,
+  removeFavoriteFromStore,
   replaceFavoritesStore,
 } from "../../shared/services/favorites-store.js";
 import { fetchCitySuggestions, fetchWeather } from "../weather/services/weather-api.js";
@@ -58,6 +59,7 @@ export function mountFavorites(root, routeState = null) {
 
   const controller = new AbortController();
   favoritesRuntime = {
+    activeContextCard: null,
     controller,
     elements: null,
     root,
@@ -125,6 +127,8 @@ function getElements(root) {
     addSearchShell: root.querySelector("#favorites-search-shell"),
     addSuggestions: root.querySelector("#favorites-suggestions"),
     count: root.querySelector("#favorites-count"),
+    contextMenu: root.querySelector("#favorites-context-menu"),
+    contextMenuRemoveButton: root.querySelector("#favorites-remove-button"),
     feedback: root.querySelector("#favorites-feedback"),
     grid: root.querySelector("#favorites-grid"),
     primaryLocation: root.querySelector("#favorites-primary-location"),
@@ -134,6 +138,10 @@ function getElements(root) {
 
 function bindFavoritesInteractions(root, elements, state, signal, view) {
   root.addEventListener("click", (event) => {
+    if (view === FAVORITES_DEFAULT_VIEW && !event.target.closest("#favorites-context-menu")) {
+      closeFavoritesContextMenu(elements);
+    }
+
     if (event.target.closest("#favorites-route-back")) {
       hideFavoritesSuggestions();
       window.location.hash = "favorites";
@@ -143,6 +151,11 @@ function bindFavoritesInteractions(root, elements, state, signal, view) {
     if (view === FAVORITES_DEFAULT_VIEW && event.target.closest("#favorites-open-add-route")) {
       state.feedback = "";
       window.location.hash = "favorites/add";
+      return;
+    }
+
+    if (view === FAVORITES_DEFAULT_VIEW && event.target.closest("#favorites-remove-button")) {
+      removeFavoriteFromContextMenu(elements, state);
       return;
     }
 
@@ -165,6 +178,42 @@ function bindFavoritesInteractions(root, elements, state, signal, view) {
       void confirmAddFavorite(elements, state);
     }
   }, { signal });
+
+  if (view === FAVORITES_DEFAULT_VIEW) {
+    root.addEventListener("contextmenu", (event) => {
+      const favoriteCard = event.target.closest("[data-favorite-query]");
+      if (!favoriteCard || !elements.grid?.contains(favoriteCard)) {
+        closeFavoritesContextMenu(elements);
+        return;
+      }
+
+      event.preventDefault();
+      openFavoritesContextMenu(favoriteCard, elements, {
+        clientX: event.clientX,
+        clientY: event.clientY,
+      });
+    }, { signal });
+
+    document.addEventListener("click", (event) => {
+      if (!event.target.closest("#favorites-context-menu")) {
+        closeFavoritesContextMenu(elements);
+      }
+    }, { signal });
+
+    document.addEventListener("keydown", (event) => {
+      if (event.key === "Escape") {
+        closeFavoritesContextMenu(elements);
+      }
+    }, { signal });
+
+    window.addEventListener("resize", () => {
+      closeFavoritesContextMenu(elements);
+    }, { signal });
+
+    document.addEventListener("scroll", () => {
+      closeFavoritesContextMenu(elements);
+    }, { capture: true, signal });
+  }
 
   if (view === "add") {
     document.addEventListener("click", (event) => {
@@ -231,7 +280,7 @@ function renderFavorites(elements, state) {
 
   if (elements.grid) {
     elements.grid.innerHTML = state.favorites.length
-      ? state.favorites.map((favorite) => renderFavoriteCard(favorite)).join("")
+      ? state.favorites.map((favorite) => renderFavoriteCard(favorite, { contextMenu: true })).join("")
       : renderFavoritesEmptyState();
   }
 
@@ -242,6 +291,8 @@ function renderFavorites(elements, state) {
   if (elements.feedback) {
     elements.feedback.textContent = state.feedback;
   }
+
+  closeFavoritesContextMenu(elements);
 }
 
 function renderFavoritesAddView(elements, state) {
@@ -456,6 +507,87 @@ function getFavoritesCountLabel(count) {
 
 function hideFavoritesSuggestions() {
   favoritesRuntime?.searchController?.hideSuggestions?.();
+}
+
+function openFavoritesContextMenu(card, elements, position = null) {
+  if (!card || !elements.contextMenu || !elements.contextMenuRemoveButton) {
+    return;
+  }
+
+  favoritesRuntime.activeContextCard = card;
+  elements.contextMenu.dataset.favoriteQuery = String(card.dataset.favoriteQuery || "").trim();
+  elements.contextMenu.dataset.favoriteName = String(card.dataset.favoriteName || "").trim();
+  elements.contextMenu.classList.add("show");
+  elements.contextMenu.setAttribute("aria-hidden", "false");
+  positionFavoritesContextMenu(card, elements.contextMenu, position);
+}
+
+function closeFavoritesContextMenu(elements) {
+  if (favoritesRuntime) {
+    favoritesRuntime.activeContextCard = null;
+  }
+
+  if (!elements.contextMenu) {
+    return;
+  }
+
+  elements.contextMenu.classList.remove("show");
+  elements.contextMenu.setAttribute("aria-hidden", "true");
+  elements.contextMenu.style.removeProperty("left");
+  elements.contextMenu.style.removeProperty("top");
+  delete elements.contextMenu.dataset.favoriteQuery;
+  delete elements.contextMenu.dataset.favoriteName;
+}
+
+function positionFavoritesContextMenu(card, contextMenu, position = null) {
+  if (!card || !contextMenu) {
+    return;
+  }
+
+  contextMenu.style.left = "0px";
+  contextMenu.style.top = "0px";
+  contextMenu.style.visibility = "hidden";
+
+  const menuRect = contextMenu.getBoundingClientRect();
+  const spacing = 10;
+  const fallbackRect = card.getBoundingClientRect();
+  let left = Number.isFinite(position?.clientX) ? position.clientX : fallbackRect.left + 10;
+  let top = Number.isFinite(position?.clientY) ? position.clientY : fallbackRect.bottom + spacing;
+
+  left += spacing;
+  top += spacing;
+
+  if (left + menuRect.width > window.innerWidth - 12) {
+    left = window.innerWidth - menuRect.width - 12;
+  }
+
+  if (top + menuRect.height > window.innerHeight - 12) {
+    const fallbackTop = Number.isFinite(position?.clientY)
+      ? position.clientY - menuRect.height - spacing
+      : fallbackRect.top - menuRect.height - spacing;
+    top = Math.max(12, fallbackTop);
+  }
+
+  left = Math.max(12, left);
+  top = Math.max(12, top);
+
+  contextMenu.style.left = `${left}px`;
+  contextMenu.style.top = `${top}px`;
+  contextMenu.style.visibility = "";
+}
+
+function removeFavoriteFromContextMenu(elements, state) {
+  const favoriteQuery = String(elements.contextMenu?.dataset.favoriteQuery || "").trim();
+  const favoriteName = String(elements.contextMenu?.dataset.favoriteName || "").trim();
+
+  if (!favoriteQuery) {
+    closeFavoritesContextMenu(elements);
+    return;
+  }
+
+  applyFavoritesStoreSnapshot(state, removeFavoriteFromStore(favoriteQuery));
+  state.feedback = `${favoriteName || "La localita selezionata"} rimossa dai preferiti.`;
+  renderFavorites(elements, state);
 }
 
 function isDuplicateFavorite(favorites, query) {
