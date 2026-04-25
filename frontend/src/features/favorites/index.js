@@ -1,5 +1,14 @@
 import { bindAppShell, renderAppHeader, renderAppSidebar } from "../../shared/components/app-shell.js";
 import { createCitySearchController } from "../../shared/services/city-search-controller.js";
+import {
+  addFavoriteToStore,
+  createFallbackFavorite,
+  getFavoritesStoreSnapshot,
+  isPrimaryLocationQuery,
+  normalizeFavorite,
+  normalizePrimaryLocation,
+  replaceFavoritesStore,
+} from "../../shared/services/favorites-store.js";
 import { fetchCitySuggestions, fetchWeather } from "../weather/services/weather-api.js";
 import { capitalizeText, formatLocation } from "../weather/utils/weather-formatters.js";
 import {
@@ -10,92 +19,7 @@ import {
   renderFavoritesPage,
 } from "./components/favorites-page.js";
 
-const FAVORITES_STORAGE_KEY = "weather-dashboard-favorite-locations";
 const FAVORITES_DEFAULT_VIEW = "overview";
-
-const PRIMARY_FALLBACK = {
-  description: "In prevalenza nuvoloso",
-  maxTemperature: 19,
-  minTemperature: 11,
-  name: "Catanzaro, Cal.",
-  precipitationProbability: 2,
-  query: "Catanzaro",
-  temperature: 13,
-  windSpeed: 12,
-};
-
-const DEFAULT_FAVORITES = [
-  {
-    description: "In prevalenza nuvoloso",
-    maxTemperature: 16,
-    minTemperature: 3,
-    name: "Aomori, Giappone",
-    precipitationProbability: 2,
-    query: "Aomori, Japan",
-    temperature: 7,
-    windSpeed: 8,
-  },
-  {
-    description: "In prevalenza nuvoloso",
-    maxTemperature: 29,
-    minTemperature: 19,
-    name: "Australia, Cuba",
-    precipitationProbability: 11,
-    query: "Australia, Cuba",
-    temperature: 28,
-    windSpeed: 16,
-  },
-  {
-    description: "Soleggiato",
-    maxTemperature: 26,
-    minTemperature: 13,
-    name: "Sidney, Stati Uniti d'America",
-    precipitationProbability: 69,
-    query: "Sidney, United States",
-    temperature: 24,
-    windSpeed: 14,
-  },
-  {
-    description: "Soleggiato",
-    maxTemperature: 17,
-    minTemperature: 7,
-    name: "Toronto, Canada",
-    precipitationProbability: 0,
-    query: "Toronto, Canada",
-    temperature: 14,
-    windSpeed: 7,
-  },
-  {
-    description: "Nuvoloso",
-    maxTemperature: 17,
-    minTemperature: 8,
-    name: "Canepina, Lazio",
-    precipitationProbability: 6,
-    query: "Canepina, Lazio",
-    temperature: 15,
-    windSpeed: 22,
-  },
-  {
-    description: "Parzialmente sereno",
-    maxTemperature: 19,
-    minTemperature: 9,
-    name: "Sicili, Campania",
-    precipitationProbability: 3,
-    query: "Sicili, Campania",
-    temperature: 15,
-    windSpeed: 12,
-  },
-  {
-    description: "Nuvoloso",
-    maxTemperature: 19,
-    minTemperature: 9,
-    name: "Roma, Laz.",
-    precipitationProbability: 59,
-    query: "Roma, Lazio",
-    temperature: 17,
-    windSpeed: 12,
-  },
-];
 
 function createInitialFavoritesAddState() {
   return {
@@ -106,14 +30,7 @@ function createInitialFavoritesAddState() {
   };
 }
 
-function createDefaultFavoritesStore() {
-  return {
-    favorites: DEFAULT_FAVORITES.map((favorite) => ({ ...favorite })),
-    primaryLocation: { ...PRIMARY_FALLBACK },
-  };
-}
-
-const initialFavoritesStore = loadFavoritesStore();
+const initialFavoritesStore = getFavoritesStoreSnapshot();
 
 const favoritesState = {
   addView: createInitialFavoritesAddState(),
@@ -136,6 +53,8 @@ export function mountFavorites(root, routeState = null) {
     window.location.hash = "favorites";
     return;
   }
+
+  applyFavoritesStoreSnapshot(favoritesState, getFavoritesStoreSnapshot());
 
   const controller = new AbortController();
   favoritesRuntime = {
@@ -356,8 +275,12 @@ async function hydratePrimaryLocation(elements, state) {
     return;
   }
 
-  state.primaryLocation = primaryResult.location;
-  state.favorites = favoriteResults.map((result) => result.favorite);
+  const nextStoreSnapshot = {
+    favorites: favoriteResults.map((result) => result.favorite),
+    primaryLocation: primaryResult.location,
+  };
+
+  applyFavoritesStoreSnapshot(state, nextStoreSnapshot);
   state.isHydratingOverview = false;
 
   const didRefreshPrimary = primaryResult.refreshed;
@@ -368,7 +291,7 @@ async function hydratePrimaryLocation(elements, state) {
     : "";
 
   if (didRefreshPrimary || didRefreshFavorites) {
-    saveFavoritesStore(state);
+    applyFavoritesStoreSnapshot(state, replaceFavoritesStore(nextStoreSnapshot));
   }
 
   renderFavorites(elements, state);
@@ -385,9 +308,10 @@ async function loadFavoritePreview(query, elements, state) {
     return;
   }
 
-  if (isDuplicateFavorite(state.favorites, query)) {
+  const duplicateMessage = getDuplicateLocationMessage(state, query);
+  if (duplicateMessage) {
     state.addView.candidate = null;
-    state.addView.feedback = "Questa localita e gia tra i preferiti.";
+    state.addView.feedback = duplicateMessage;
     state.addView.pending = false;
     renderFavoritesAddView(elements, state);
     return;
@@ -416,9 +340,10 @@ async function loadFavoritePreview(query, elements, state) {
     return;
   }
 
-  if (isDuplicateFavorite(state.favorites, nextCandidate.query)) {
+  const candidateDuplicateMessage = getDuplicateLocationMessage(state, nextCandidate.query);
+  if (candidateDuplicateMessage) {
     state.addView.candidate = null;
-    state.addView.feedback = "Questa localita e gia tra i preferiti.";
+    state.addView.feedback = candidateDuplicateMessage;
     state.addView.pending = false;
     renderFavoritesAddView(elements, state);
     return;
@@ -443,8 +368,9 @@ async function confirmAddFavorite(elements, state) {
     return;
   }
 
-  if (isDuplicateFavorite(state.favorites, candidate.query)) {
-    state.addView.feedback = "Questa localita e gia tra i preferiti.";
+  const duplicateMessage = getDuplicateLocationMessage(state, candidate.query);
+  if (duplicateMessage) {
+    state.addView.feedback = duplicateMessage;
     renderFavoritesAddView(elements, state);
     return;
   }
@@ -452,8 +378,7 @@ async function confirmAddFavorite(elements, state) {
   state.addView.pending = true;
   renderFavoritesAddView(elements, state);
 
-  state.favorites = [...state.favorites, candidate];
-  saveFavoritesStore(state);
+  applyFavoritesStoreSnapshot(state, addFavoriteToStore(candidate));
   state.feedback = `${candidate.name} aggiunta ai preferiti.`;
 
   if (elements.addInput) {
@@ -470,6 +395,7 @@ function createFavoriteFromWeather(data, query, fallback = {}) {
 
   return {
     description: capitalizeText(data.description || fallback.description || "Meteo disponibile"),
+    icon: data.icon ?? fallback.icon ?? null,
     maxTemperature: today.max_temperature ?? fallback.maxTemperature ?? data.temperature ?? null,
     minTemperature: today.min_temperature ?? fallback.minTemperature ?? data.feels_like ?? null,
     name: formatLocation(data) || fallback.name || query,
@@ -477,19 +403,6 @@ function createFavoriteFromWeather(data, query, fallback = {}) {
     query,
     temperature: data.temperature ?? fallback.temperature ?? null,
     windSpeed: data.wind_speed ?? fallback.windSpeed ?? null,
-  };
-}
-
-function createFallbackFavorite(query) {
-  return {
-    description: "Meteo non disponibile",
-    maxTemperature: null,
-    minTemperature: null,
-    name: query,
-    precipitationProbability: 0,
-    query,
-    temperature: null,
-    windSpeed: null,
   };
 }
 
@@ -533,85 +446,6 @@ async function hydrateFavoriteSnapshot(favorite) {
   }
 }
 
-function loadFavoritesStore() {
-  const defaultStore = createDefaultFavoritesStore();
-
-  if (typeof localStorage === "undefined") {
-    return defaultStore;
-  }
-
-  try {
-    const parsedStore = JSON.parse(localStorage.getItem(FAVORITES_STORAGE_KEY) || "null");
-
-    if (Array.isArray(parsedStore)) {
-      return {
-        ...defaultStore,
-        favorites: parsedStore.map(normalizeFavorite).filter(Boolean),
-      };
-    }
-
-    if (parsedStore && typeof parsedStore === "object") {
-      return {
-        favorites: Array.isArray(parsedStore.favorites)
-          ? parsedStore.favorites.map(normalizeFavorite).filter(Boolean)
-          : defaultStore.favorites,
-        primaryLocation: normalizePrimaryLocation(parsedStore.primaryLocation),
-      };
-    }
-  } catch (error) {
-    console.warn("Preferiti: preferiti salvati non validi", error);
-  }
-
-  return defaultStore;
-}
-
-function normalizeFavorite(favorite) {
-  if (typeof favorite === "string") {
-    return createFallbackFavorite(favorite);
-  }
-
-  if (!favorite?.query || !favorite?.name) {
-    return null;
-  }
-
-  return {
-    description: favorite.description || "Meteo disponibile",
-    maxTemperature: favorite.maxTemperature ?? null,
-    minTemperature: favorite.minTemperature ?? null,
-    name: favorite.name,
-    precipitationProbability: favorite.precipitationProbability ?? 0,
-    query: favorite.query,
-    temperature: favorite.temperature ?? null,
-    windSpeed: favorite.windSpeed ?? null,
-  };
-}
-
-function normalizePrimaryLocation(primaryLocation) {
-  if (!primaryLocation?.query) {
-    return { ...PRIMARY_FALLBACK };
-  }
-
-  return {
-    ...PRIMARY_FALLBACK,
-    ...primaryLocation,
-  };
-}
-
-function saveFavoritesStore({ favorites, primaryLocation }) {
-  if (typeof localStorage === "undefined") {
-    return;
-  }
-
-  try {
-    localStorage.setItem(FAVORITES_STORAGE_KEY, JSON.stringify({
-      favorites: Array.isArray(favorites) ? favorites.map(normalizeFavorite).filter(Boolean) : [],
-      primaryLocation: normalizePrimaryLocation(primaryLocation),
-    }));
-  } catch (error) {
-    console.warn("Preferiti: impossibile salvare i preferiti", error);
-  }
-}
-
 function normalizeQuery(value) {
   return String(value || "").trim().toLowerCase();
 }
@@ -626,6 +460,18 @@ function hideFavoritesSuggestions() {
 
 function isDuplicateFavorite(favorites, query) {
   return favorites.some((favorite) => normalizeQuery(favorite.query) === normalizeQuery(query));
+}
+
+function getDuplicateLocationMessage(state, query) {
+  if (isPrimaryLocationQuery(query) || normalizeQuery(state.primaryLocation?.query) === normalizeQuery(query)) {
+    return "Questa localita e gia impostata come principale.";
+  }
+
+  if (isDuplicateFavorite(state.favorites, query)) {
+    return "Questa localita e gia tra i preferiti.";
+  }
+
+  return "";
 }
 
 function isFavoritesViewActive(elements, view) {
@@ -655,6 +501,11 @@ function resetFavoritesAddState(state) {
     ...createInitialFavoritesAddState(),
     requestId: (state.addView?.requestId || 0) + 1,
   };
+}
+
+function applyFavoritesStoreSnapshot(state, snapshot) {
+  state.favorites = Array.isArray(snapshot?.favorites) ? snapshot.favorites.map((favorite) => ({ ...favorite })) : [];
+  state.primaryLocation = normalizePrimaryLocation(snapshot?.primaryLocation);
 }
 
 function resolveFavoritesView(routeState) {

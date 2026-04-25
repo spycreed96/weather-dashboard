@@ -27,7 +27,7 @@ export function renderWeatherControls() {
         <div id="history-container-shell" class="history-container-shell">
           <div id="history-container" class="history-container"></div>
           <div id="history-dropdown-layer" class="history-dropdown" aria-hidden="true">
-            <button id="history-remove-button" type="button" class="history-remove">Rimuovi percorso</button>
+            <button id="history-remove-button" type="button" class="history-remove">Rimuovi dai preferiti</button>
           </div>
         </div>
         <div class="history-nav">

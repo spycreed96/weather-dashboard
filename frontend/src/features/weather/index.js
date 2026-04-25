@@ -1,6 +1,15 @@
 import { qs, qsa } from "../../shared/utils/dom.js";
 import { bindAppShell, renderAppSidebar } from "../../shared/components/app-shell.js";
 import { createCitySearchController } from "../../shared/services/city-search-controller.js";
+import {
+  getHistoryLocationsSnapshot,
+  getPrimaryLocationQuery,
+  isFavoriteLocationQuery,
+  isPrimaryLocationQuery,
+  promoteFavoriteToPrimary,
+  removeLocationFromStore,
+  updateSavedLocationSnapshot,
+} from "../../shared/services/favorites-store.js";
 import { formatCurrentTime } from "../../shared/utils/format-date.js";
 import { renderForecastChart, renderForecastItems } from "./components/forecast-list.js";
 import { initForecastDayChart } from "./components/forecast-day-chart.js";
@@ -31,7 +40,7 @@ const REFRESH_TOAST_HIDE_DELAY = 2800;
 
 function createInitialWeatherState() {
   return {
-    activeQuery: "Catanzaro",
+    activeQuery: getPrimaryLocationQuery() || "Catanzaro",
     activeForecastTab: "overview",
     cityMap: null,
     cityMapCircle: null,
@@ -74,7 +83,15 @@ export function mountWeather(root) {
     <div class="app-route-content">
       ${renderWeatherControls()}
       <div class="dashboard-content">
-        <p id="current-location" class="current-location">--</p>
+        <div id="current-location-shell" class="current-location-shell">
+          <span
+            id="current-location-home"
+            class="current-location-home"
+            hidden
+            aria-hidden="true"
+          ></span>
+          <p id="current-location" class="current-location">--</p>
+        </div>
         ${renderWeatherCard()}
         ${renderForecastPanel()}
         ${renderWeatherInsightsSection()}
@@ -83,6 +100,7 @@ export function mountWeather(root) {
   `;
 
   const state = weatherState;
+  syncWeatherStateWithPrimaryLocation(state);
   state.keepSearchInputEmptyOnMount = true;
   const elements = getElements(root);
   weatherRuntime.elements = elements;
@@ -102,10 +120,13 @@ export function mountWeather(root) {
   bindForecastFeelsLikeToggle(elements, state);
   bindForecastTabs(elements, state);
   bindHistoryNavigation(elements);
-  bindHistoryDropdownLayer(elements);
+  bindHistoryDropdownLayer(elements, state);
   bindForecastNavigation(elements, state);
+  bindCurrentLocationPrimaryControl(elements, state);
   bindSearchInteractions(elements, state);
   bindGlobalInteractions(elements);
+  renderSavedHistoryLocations(elements, state);
+  updateCurrentLocationPrimaryControl(elements, state);
 
   if (state.currentWeather) {
     renderWeather(elements, state, state.currentWeather);
@@ -167,6 +188,8 @@ function getElements(root) {
     icon: qs("#weather-icon", root),
     input: qs("#city-input", root),
     location: qs("#current-location", root),
+    locationHome: qs("#current-location-home", root),
+    locationShell: qs("#current-location-shell", root),
     map: qs("#city-map", root),
     mapCopy: qs("#map-copy", root),
     pressure: qs("#pressure", root),
@@ -589,7 +612,7 @@ function bindHistoryNavigation(elements) {
   }, getWeatherListenerOptions());
 }
 
-function bindHistoryDropdownLayer(elements) {
+function bindHistoryDropdownLayer(elements, state) {
   if (!elements.historyRemoveButton || !elements.historyContainer) {
     return;
   }
@@ -603,14 +626,62 @@ function bindHistoryDropdownLayer(elements) {
       return;
     }
 
-    if (elements.historyContainer.children.length > 1) {
+    const targetQuery = String(activeHistoryItem.dataset.query || "").trim();
+    const normalizedTargetQuery = normalizeWeatherQuery(targetQuery);
+
+    if (!normalizedTargetQuery) {
       closeAllHistoryDropdowns();
-      activeHistoryItem.remove();
-      updateHistoryNavVisibility(elements);
       return;
     }
 
+    const wasPrimary = isPrimaryLocationQuery(targetQuery);
+    const wasCurrentLocation = normalizeWeatherQuery(getActiveWeatherQuery(state)) === normalizedTargetQuery;
+    const previousPrimaryQuery = normalizeWeatherQuery(getPrimaryLocationQuery());
+    const removedLocationLabel = getActionLocationLabel(activeHistoryItem.dataset.city || activeHistoryItem.dataset.query);
+    const nextStoreSnapshot = removeLocationFromStore(targetQuery);
+    const nextPrimaryQuery = normalizeWeatherQuery(nextStoreSnapshot.primaryLocation?.query);
+
     closeAllHistoryDropdowns();
+    renderSavedHistoryLocations(elements, state);
+
+    if (wasPrimary && nextPrimaryQuery === previousPrimaryQuery) {
+      showRefreshToast(elements, state, "Deve esistere sempre almeno una localita principale", "error");
+      updateCurrentLocationPrimaryControl(elements, state);
+      return;
+    }
+
+    if (wasPrimary && wasCurrentLocation && nextPrimaryQuery && nextPrimaryQuery !== normalizedTargetQuery) {
+      const nextPrimaryLabel = getActionLocationLabel(nextStoreSnapshot.primaryLocation?.name || nextStoreSnapshot.primaryLocation?.query);
+      state.pendingHistoryLabel = getHistoryDisplayLabel(nextStoreSnapshot.primaryLocation?.name)
+        || getHistoryDisplayLabel(nextStoreSnapshot.primaryLocation?.query);
+      state.keepSearchInputEmptyOnMount = true;
+      state.activeQuery = nextStoreSnapshot.primaryLocation.query;
+      showRefreshToast(
+        elements,
+        state,
+        `${removedLocationLabel} rimossa. ${nextPrimaryLabel} e ora la localita principale`,
+        "success",
+      );
+      if (elements.input) {
+        elements.input.value = "";
+      }
+      void fetchAndRenderWeather(nextStoreSnapshot.primaryLocation.query, elements, state);
+      return;
+    }
+
+    if (wasPrimary && nextPrimaryQuery && nextPrimaryQuery !== normalizedTargetQuery) {
+      const nextPrimaryLabel = getActionLocationLabel(nextStoreSnapshot.primaryLocation?.name || nextStoreSnapshot.primaryLocation?.query);
+      showRefreshToast(
+        elements,
+        state,
+        `${removedLocationLabel} rimossa. ${nextPrimaryLabel} e ora la localita principale`,
+        "success",
+      );
+    } else {
+      showRefreshToast(elements, state, `${removedLocationLabel} rimossa dai preferiti`, "success");
+    }
+
+    updateCurrentLocationPrimaryControl(elements, state);
   }, getWeatherListenerOptions());
 }
 
@@ -705,6 +776,51 @@ function bindSearchInteractions(elements, state) {
   });
 }
 
+function bindCurrentLocationPrimaryControl(elements, state) {
+  if (!elements.locationShell) {
+    return;
+  }
+
+  const promoteCurrentLocationToPrimary = () => {
+    const currentQuery = getActiveWeatherQuery(state);
+    if (!state.currentWeather || !currentQuery || isPrimaryLocationQuery(currentQuery) || !isFavoriteLocationQuery(currentQuery)) {
+      return;
+    }
+
+    const nextStoreSnapshot = promoteFavoriteToPrimary(createFavoriteSnapshotFromWeather(state.currentWeather, currentQuery));
+    state.activeQuery = nextStoreSnapshot.primaryLocation.query;
+    renderSavedHistoryLocations(elements, state);
+    updateCurrentLocationPrimaryControl(elements, state);
+    showRefreshToast(
+      elements,
+      state,
+      `${getActionLocationLabel(state.currentWeather?.name || currentQuery)} e ora la localita principale`,
+      "success",
+    );
+  };
+
+  elements.locationShell.addEventListener("click", () => {
+    if (!elements.locationShell.classList.contains("is-clickable")) {
+      return;
+    }
+
+    promoteCurrentLocationToPrimary();
+  }, getWeatherListenerOptions());
+
+  elements.locationShell.addEventListener("keydown", (event) => {
+    if (!elements.locationShell.classList.contains("is-clickable")) {
+      return;
+    }
+
+    if (event.key !== "Enter" && event.key !== " ") {
+      return;
+    }
+
+    event.preventDefault();
+    promoteCurrentLocationToPrimary();
+  }, getWeatherListenerOptions());
+}
+
 function bindGlobalInteractions(elements) {
   document.addEventListener("click", (event) => {
     if (!elements.searchHeader.contains(event.target)) {
@@ -767,6 +883,15 @@ function renderWeather(elements, state, data) {
   elements.location.textContent = preferredLocationName
     ? formatLocation({ ...data, name: preferredLocationName })
     : formatLocation(data);
+  state.pendingHistoryLabel = null;
+
+  const currentQuery = getActiveWeatherQuery(state);
+  if (currentQuery && (isPrimaryLocationQuery(currentQuery) || isFavoriteLocationQuery(currentQuery))) {
+    updateSavedLocationSnapshot(createFavoriteSnapshotFromWeather(data, currentQuery));
+    renderSavedHistoryLocations(elements, state);
+  }
+
+  updateCurrentLocationPrimaryControl(elements, state);
   elements.temperature.dataset.celsius = data.temperature ?? "";
   updatePrimaryTemperatureDisplay(elements, data.temperature, state.temperatureUnit);
   elements.weatherSummary.textContent = formatWeatherSummary(data.description);
@@ -799,7 +924,6 @@ function renderWeather(elements, state, data) {
   renderForecastPanels(elements, state);
 
   updateCityMap(elements, state, data);
-  addToHistory(elements, state, data);
 }
 
 function resetWeatherPanel(elements, state) {
@@ -808,6 +932,7 @@ function resetWeatherPanel(elements, state) {
   state.keepSearchInputEmptyOnMount = false;
   state.selectedForecastDate = null;
   elements.location.textContent = "--";
+  updateCurrentLocationPrimaryControl(elements, state);
   elements.temperature.dataset.celsius = "";
   updatePrimaryTemperatureDisplay(elements, null, state.temperatureUnit);
   elements.weatherSummary.textContent = "--";
@@ -881,6 +1006,10 @@ function getHistoryDisplayLabel(value) {
   return formatDisplayCityLabel(normalizedValue.split(",")[0].trim());
 }
 
+function getActionLocationLabel(value) {
+  return getHistoryDisplayLabel(value) || "La localita selezionata";
+}
+
 function formatDisplayCityLabel(value) {
   const normalizedValue = String(value || "").trim().toLowerCase();
   if (!normalizedValue) {
@@ -892,52 +1021,159 @@ function formatDisplayCityLabel(value) {
   });
 }
 
-function addToHistory(elements, state, data) {
-  const historyDisplayLabel = getHistoryDisplayLabel(state.pendingHistoryLabel) || data.name;
-  state.pendingHistoryLabel = null;
-  const historyQuery = data.country ? `${data.name}, ${data.country}` : data.name;
-  const cityKey = historyQuery.trim().toLowerCase();
+function createFavoriteSnapshotFromWeather(data, query) {
+  const today = data?.forecast_days?.[0] || {};
 
-  if (elements.historyContainer.querySelector(`[data-city-key="${cityKey}"]`)) {
+  return {
+    description: capitalizeText(data?.description || "Meteo disponibile"),
+    icon: data?.icon ?? null,
+    maxTemperature: today.max_temperature ?? data?.temperature ?? null,
+    minTemperature: today.min_temperature ?? data?.feels_like ?? null,
+    name: formatLocation(data) || query,
+    precipitationProbability: today.precipitation_probability ?? 0,
+    query,
+    temperature: data?.temperature ?? null,
+    windSpeed: data?.wind_speed ?? null,
+  };
+}
+
+function syncWeatherStateWithPrimaryLocation(state) {
+  const primaryQuery = getPrimaryLocationQuery() || "Catanzaro";
+
+  if (normalizeWeatherQuery(state.activeQuery) === normalizeWeatherQuery(primaryQuery)) {
+    state.activeQuery = primaryQuery;
     return;
   }
 
-  const compactIconUrl = getWeatherIconUrl(data.icon, "");
-  const iconMarkup = compactIconUrl
-    ? `<img class="responsive-history-img" src="${compactIconUrl}" alt="Weather" />`
-    : "<span>Cloud</span>";
+  state.activeQuery = primaryQuery;
+  state.currentWeather = null;
+  state.forecastData = [];
+  state.pendingHistoryLabel = null;
+  state.selectedForecastDate = null;
+}
 
-  const historyEntry = createHistoryItem({
-    cityKey,
-    cityName: historyDisplayLabel,
-    historyQuery,
-    iconMarkup,
-    temperatureLabel: formatTemperature(data.temperature, state.temperatureUnit),
-    temperatureMarkup: renderDetailInlineTemperature(data.temperature, state.temperatureUnit),
-    rawTemperature: data.temperature ?? "",
+function normalizeWeatherQuery(value) {
+  return String(value || "").trim().toLowerCase();
+}
+
+function getActiveWeatherQuery(state) {
+  return String(state.activeQuery || "").trim();
+}
+
+function renderCurrentLocationHomeIcon() {
+  return `
+    <svg class="current-location-home-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+      <path d="M12 3.25a1.9 1.9 0 0 1 1.27.49l6.16 5.55c.42.38.66.92.66 1.49v7.47A2.75 2.75 0 0 1 17.34 21H6.66a2.75 2.75 0 0 1-2.75-2.75v-7.47c0-.57.24-1.11.66-1.49l6.16-5.55A1.9 1.9 0 0 1 12 3.25Zm0 2.21L6.13 10.74v7.51c0 .29.24.53.53.53h2.82v-4.2c0-.92.75-1.67 1.67-1.67h1.7c.92 0 1.67.75 1.67 1.67v4.2h2.82c.29 0 .53-.24.53-.53v-7.51L12 5.46Z" />
+    </svg>
+  `;
+}
+
+function updateCurrentLocationPrimaryControl(elements, state) {
+  if (!elements.locationHome || !elements.locationShell) {
+    return;
+  }
+
+  if (!state.currentWeather) {
+    elements.locationShell.classList.remove("current-location-shell--primary", "current-location-shell--favorite", "is-clickable");
+    elements.locationShell.removeAttribute("role");
+    elements.locationShell.removeAttribute("tabindex");
+    elements.locationShell.removeAttribute("aria-label");
+    elements.locationShell.removeAttribute("title");
+    elements.locationHome.hidden = true;
+    elements.locationHome.classList.remove("is-primary");
+    elements.locationHome.innerHTML = "";
+    return;
+  }
+
+  const currentQuery = getActiveWeatherQuery(state);
+  const isPrimary = Boolean(currentQuery) && isPrimaryLocationQuery(currentQuery);
+  const isFavorite = Boolean(currentQuery) && isFavoriteLocationQuery(currentQuery);
+
+  elements.locationShell.classList.toggle("current-location-shell--primary", isPrimary);
+  elements.locationShell.classList.toggle("current-location-shell--favorite", !isPrimary && isFavorite);
+  elements.locationShell.classList.toggle("is-clickable", !isPrimary && isFavorite);
+
+  if (!currentQuery || (!isPrimary && !isFavorite)) {
+    elements.locationHome.hidden = true;
+    elements.locationHome.classList.remove("is-primary");
+    elements.locationHome.innerHTML = "";
+    elements.locationShell.removeAttribute("role");
+    elements.locationShell.removeAttribute("tabindex");
+    elements.locationShell.removeAttribute("aria-label");
+    elements.locationShell.removeAttribute("title");
+    return;
+  }
+
+  elements.locationHome.hidden = false;
+  elements.locationHome.innerHTML = renderCurrentLocationHomeIcon();
+  elements.locationHome.classList.toggle("is-primary", isPrimary);
+  if (!isPrimary && isFavorite) {
+    elements.locationShell.setAttribute("role", "button");
+    elements.locationShell.setAttribute("tabindex", "0");
+    elements.locationShell.setAttribute("aria-label", "Imposta questa localita come principale");
+    elements.locationShell.setAttribute("title", "Imposta questa localita come principale");
+    return;
+  }
+
+  elements.locationShell.removeAttribute("role");
+  elements.locationShell.removeAttribute("tabindex");
+  elements.locationShell.removeAttribute("aria-label");
+  elements.locationShell.setAttribute("title", "Localita principale attiva");
+}
+
+function renderSavedHistoryLocations(elements, state) {
+  if (!elements.historyContainer) {
+    return;
+  }
+
+  closeAllHistoryDropdowns();
+  elements.historyContainer.replaceChildren();
+
+  getHistoryLocationsSnapshot().forEach((location) => {
+    const historyQuery = String(location?.query || "").trim();
+    if (!historyQuery) {
+      return;
+    }
+
+    const isPrimaryHistoryItem = isPrimaryLocationQuery(historyQuery);
+    const isActiveHistoryItem = normalizeWeatherQuery(getActiveWeatherQuery(state)) === normalizeWeatherQuery(historyQuery);
+    const historyDisplayLabel = getHistoryDisplayLabel(location.name) || getHistoryDisplayLabel(historyQuery) || location.name;
+    const compactIconUrl = getWeatherIconUrl(location.icon, "");
+    const iconMarkup = compactIconUrl
+      ? `<img class="responsive-history-img" src="${compactIconUrl}" alt="Weather" />`
+      : "<span>Cloud</span>";
+    const historyEntry = createHistoryItem({
+      cityKey: normalizeWeatherQuery(historyQuery),
+      cityName: historyDisplayLabel,
+      historyQuery,
+      iconMarkup,
+      isActive: isActiveHistoryItem,
+      isPrimary: isPrimaryHistoryItem,
+      temperatureLabel: formatTemperature(location.temperature, state.temperatureUnit),
+      temperatureMarkup: renderDetailInlineTemperature(location.temperature, state.temperatureUnit),
+      rawTemperature: location.temperature ?? "",
+    });
+
+    historyEntry.menuButton.addEventListener("click", (event) => {
+      event.stopPropagation();
+      toggleHistoryDropdown(historyEntry.menuButton, historyEntry.item, elements);
+    }, getWeatherListenerOptions());
+
+    historyEntry.item.addEventListener("click", () => {
+      closeAllHistoryDropdowns();
+      state.pendingHistoryLabel = historyDisplayLabel;
+      state.keepSearchInputEmptyOnMount = true;
+      if (elements.input) {
+        elements.input.value = "";
+      }
+      void fetchAndRenderWeather(historyQuery, elements, state);
+    }, getWeatherListenerOptions());
+
+    elements.historyContainer.appendChild(historyEntry.item);
   });
 
-  historyEntry.menuButton.addEventListener("click", (event) => {
-    event.stopPropagation();
-    toggleHistoryDropdown(historyEntry.menuButton, historyEntry.item, elements);
-  }, getWeatherListenerOptions());
-
-  historyEntry.item.addEventListener("click", () => {
-    closeAllHistoryDropdowns();
-    state.pendingHistoryLabel = historyDisplayLabel;
-    state.keepSearchInputEmptyOnMount = true;
-    if (elements.input) {
-      elements.input.value = "";
-    }
-    void fetchAndRenderWeather(historyQuery, elements, state);
-  }, getWeatherListenerOptions());
-
-  elements.historyContainer.appendChild(historyEntry.item);
-
-  scheduleWeatherTimeout(() => {
-    elements.historyContainer.scrollLeft = elements.historyContainer.scrollWidth;
-    updateHistoryNavVisibility(elements);
-  }, 100);
+  elements.historyContainer.scrollLeft = 0;
+  updateHistoryNavVisibility(elements);
 }
 
 function closeAllHistoryDropdowns() {
@@ -981,11 +1217,40 @@ function toggleHistoryDropdown(menuButton, historyItem, elements) {
     weatherRuntime.activeHistoryItem = historyItem;
   }
 
+  updateHistoryDropdownAction(elements, historyItem);
   historyItem.classList.add("is-dropdown-open");
   menuButton.setAttribute("aria-expanded", "true");
   elements.historyDropdownLayer.classList.add("show");
   elements.historyDropdownLayer.setAttribute("aria-hidden", "false");
   positionHistoryDropdown(historyItem, elements.historyDropdownLayer, elements.historyContainerShell);
+}
+
+function updateHistoryDropdownAction(elements, historyItem) {
+  if (!elements.historyRemoveButton) {
+    return;
+  }
+
+  const historyQuery = String(historyItem?.dataset?.query || "").trim();
+  const isPrimaryTarget = Boolean(historyQuery) && isPrimaryLocationQuery(historyQuery);
+  const savedLocationsCount = getHistoryLocationsSnapshot().length;
+  const isRemovalBlocked = isPrimaryTarget && savedLocationsCount <= 1;
+
+  if (isRemovalBlocked) {
+    elements.historyRemoveButton.textContent = "Mantieni almeno una localita";
+  } else if (isPrimaryTarget) {
+    elements.historyRemoveButton.textContent = "Rimuovi localita principale";
+  } else {
+    elements.historyRemoveButton.textContent = "Rimuovi dai preferiti";
+  }
+
+  elements.historyRemoveButton.disabled = isRemovalBlocked;
+  elements.historyRemoveButton.setAttribute("aria-disabled", String(isRemovalBlocked));
+  elements.historyRemoveButton.setAttribute(
+    "title",
+    isRemovalBlocked
+      ? "Deve esistere sempre almeno una localita principale"
+      : elements.historyRemoveButton.textContent,
+  );
 }
 
 function positionHistoryDropdown(historyItem, dropdownLayer, containerShell) {

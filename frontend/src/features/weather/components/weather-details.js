@@ -32,10 +32,30 @@ export function renderWeatherDetails() {
   `;
 }
 
-export function createHistoryItem({ cityKey, cityName, historyQuery, iconMarkup, temperatureLabel, temperatureMarkup, rawTemperature }) {
+export function createHistoryItem({
+  cityKey,
+  cityName,
+  historyQuery,
+  iconMarkup,
+  isActive = false,
+  isPrimary = false,
+  temperatureLabel,
+  temperatureMarkup,
+  rawTemperature,
+}) {
+  const className = [
+    "weather-history-item",
+    isPrimary ? "weather-history-item--primary" : "",
+    isActive ? "is-active" : "",
+  ].filter(Boolean).join(" ");
+
   const item = htmlToElement(`
-    <div class="weather-history-item" data-city-key="${cityKey}" data-city="${cityName}" data-query="${historyQuery}">
-      <div class="history-city-name">${cityName}</div>
+    <div class="${className}" data-city-key="${cityKey}" data-city="${cityName}" data-query="${historyQuery}">
+      <div class="history-city-copy">
+        <div class="history-city-line">
+          <div class="history-city-name">${cityName}</div>
+        </div>
+      </div>
       <div class="history-icon">${iconMarkup}</div>
       <div class="history-temperature" data-celsius="${rawTemperature}" aria-label="${temperatureLabel}">${temperatureMarkup}</div>
       <button type="button" class="history-menu" aria-haspopup="true" aria-expanded="false" aria-label="Apri menu percorso">...</button>
