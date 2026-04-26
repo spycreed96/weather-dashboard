@@ -1,6 +1,6 @@
 .env
 .venv/
-.github/copilot-instructions.md
+.github
 .weather-agents
 .worktrees
 testing.py
