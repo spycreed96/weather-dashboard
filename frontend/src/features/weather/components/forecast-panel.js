@@ -32,7 +32,7 @@ export function renderForecastPanel() {
       <div class="forecast-panel-header">
         <div>
           <h3 id="forecast-panel-title">Panoramica</h3>
-          <p class="forecast-panel-copy">Panello orario con vista termica, trend giornaliero e contesto astronomico.</p>
+          <p class="forecast-panel-copy">Pannello orario con vista termica, trend giornaliero e contesto astronomico.</p>
         </div>
 
         <div class="forecast-panel-meta">

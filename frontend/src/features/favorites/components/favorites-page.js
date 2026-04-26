@@ -20,9 +20,9 @@ export function renderFavoritesPage({ favoritesCount = 0 } = {}) {
       <div class="favorites-overview-hero">
         <div class="favorites-overview-copy">
           <p class="favorites-route-eyebrow">Panoramica</p>
-          <h2 id="favorites-main-title" class="favorites-section-title">Localita principale</h2>
+          <h2 id="favorites-main-title" class="favorites-section-title">Località principale</h2>
           <p class="favorites-route-description">
-            Qui trovi la localita principale attuale e la raccolta delle localita salvate tra i preferiti.
+            Qui trovi la località principale attuale e la raccolta delle località salvate tra i preferiti.
           </p>
         </div>
 
@@ -37,12 +37,12 @@ export function renderFavoritesPage({ favoritesCount = 0 } = {}) {
 
       <div class="favorites-section-heading">
         <div>
-          <h2 class="favorites-section-title favorites-section-title--secondary">Localita preferite</h2>
-          <p class="favorites-section-subtitle">Aggiungi nuove localita dalla view dedicata con ricerca e suggerimenti.</p>
+          <h2 class="favorites-section-title favorites-section-title--secondary">Località preferite</h2>
+          <p class="favorites-section-subtitle">Aggiungi nuove località dalla view dedicata con ricerca e suggerimenti.</p>
         </div>
 
         <button id="favorites-open-add-route" class="favorites-section-action" type="button">
-          Aggiungi localita
+          Aggiungi località
         </button>
       </div>
 
@@ -67,7 +67,7 @@ export function renderFavoritesAddPage() {
 
         <div class="favorites-route-copy">
           <p class="favorites-route-eyebrow">Aggiungi</p>
-          <h2 id="favorites-add-title" class="favorites-section-title">Nuova localita preferita</h2>
+          <h2 id="favorites-add-title" class="favorites-section-title">Nuova località preferita</h2>
           <p class="favorites-route-description">
             Cerca una citta con la search bar, controlla l&apos;anteprima meteo e conferma l&apos;aggiunta ai preferiti.
           </p>
@@ -81,7 +81,7 @@ export function renderFavoritesAddPage() {
               <input
                 id="favorites-city-input"
                 type="text"
-                placeholder="Cerca localita"
+                placeholder="Cerca località"
                 autocomplete="off"
               />
               <button class="search-submit" type="submit" title="Cerca" aria-label="Cerca">&#8981;</button>
@@ -90,7 +90,7 @@ export function renderFavoritesAddPage() {
           </div>
 
           <p class="favorites-add-hint">
-            Seleziona un suggerimento oppure premi Cerca per preparare l&apos;anteprima della localita.
+            Seleziona un suggerimento oppure premi Cerca per preparare l&apos;anteprima della località.
           </p>
           <p id="favorites-add-feedback" class="favorites-feedback favorites-feedback--add" role="status" aria-live="polite"></p>
         </div>
@@ -137,7 +137,7 @@ export function renderFavoritesEmptyState() {
   return `
     <article class="favorites-empty-state">
       <p class="favorites-empty-state__eyebrow">Ancora vuota</p>
-      <h3 class="favorites-empty-state__title">Nessuna localita preferita salvata</h3>
+      <h3 class="favorites-empty-state__title">Nessuna località preferita salvata</h3>
       <p class="favorites-empty-state__copy">
         Apri la view di aggiunta per cercare una citta e iniziare a costruire la tua lista di preferiti.
       </p>
@@ -150,7 +150,7 @@ export function renderFavoritesAddPreview({ candidate = null, pending = false } 
     return `
       <section class="favorites-add-preview-panel favorites-add-preview-panel--loading" aria-live="polite">
         <p class="favorites-add-preview-label">Anteprima in caricamento</p>
-        <h3 class="favorites-add-preview-title">Sto recuperando i dati della localita</h3>
+        <h3 class="favorites-add-preview-title">Sto recuperando i dati della località</h3>
         <p class="favorites-add-preview-copy">
           Attendi un momento: preparo la card meteo che potrai aggiungere ai preferiti.
         </p>
@@ -162,7 +162,7 @@ export function renderFavoritesAddPreview({ candidate = null, pending = false } 
     return `
       <section class="favorites-add-preview-panel">
         <p class="favorites-add-preview-label">Anteprima</p>
-        <h3 class="favorites-add-preview-title">Nessuna localita selezionata</h3>
+        <h3 class="favorites-add-preview-title">Nessuna località selezionata</h3>
         <p class="favorites-add-preview-copy">
           Cerca una citta per vedere qui l&apos;anteprima e confermare l&apos;aggiunta ai preferiti.
         </p>
@@ -179,7 +179,7 @@ export function renderFavoritesAddPreview({ candidate = null, pending = false } 
 
       <div class="favorites-add-preview-footer">
         <p class="favorites-add-preview-copy">
-          La localita principale non cambiera: questa azione aggiunge solo una nuova card ai preferiti.
+          La località principale non cambiera: questa azione aggiunge solo una nuova card ai preferiti.
         </p>
 
         <div class="favorites-add-preview-actions">

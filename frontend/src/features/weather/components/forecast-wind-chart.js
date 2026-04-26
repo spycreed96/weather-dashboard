@@ -41,7 +41,7 @@ export function renderWindForecastChart(day, options = DEFAULT_WIND_OPTIONS) {
       <div class="forecast-wind-legend" aria-label="Legenda vento">
         <span class="forecast-wind-legend-item">
           <span class="forecast-wind-legend-dot" aria-hidden="true"></span>
-          <span>Velocita del vento</span>
+          <span>Velocità del vento</span>
         </span>
         <span class="forecast-wind-legend-item">
           <span class="forecast-wind-legend-line" aria-hidden="true"></span>
@@ -81,7 +81,7 @@ export function initWindForecastChart(day, options = DEFAULT_WIND_OPTIONS) {
   const datasets = [
     {
       type: "line",
-      label: "Velocita del vento",
+      label: "Velocità del vento",
       data: speedData,
       borderColor: "rgba(113, 175, 245, 0.96)",
       backgroundColor: "rgba(81, 136, 207, 0.44)",

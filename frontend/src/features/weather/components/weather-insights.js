@@ -210,7 +210,7 @@ function renderWindInsightCard(weatherData) {
   const windDirection = toNumericValue(weatherData?.wind_direction);
 
   if (windSpeed === null && windGust === null) {
-    return renderEmptyInsightCard("Vento", "Velocita', raffiche e direzione del vento appariranno qui quando i dati correnti saranno disponibili.");
+    return renderEmptyInsightCard("Vento", "Velocità, raffiche e direzione del vento appariranno qui quando i dati correnti saranno disponibili.");
   }
 
   const resolvedSpeed = windSpeed ?? windGust ?? 0;
@@ -235,7 +235,7 @@ function renderWindInsightCard(weatherData) {
             <strong>${formatWholeInsightNumber(resolvedSpeed)}</strong>
             <span>km/h</span>
           </div>
-          <p class="weather-insight-wind-reading-caption">Velocita' media</p>
+          <p class="weather-insight-wind-reading-caption">Velocità media</p>
 
           <div class="weather-insight-wind-reading weather-insight-wind-reading--secondary">
             <strong>${formatWholeInsightNumber(resolvedGust)}</strong>

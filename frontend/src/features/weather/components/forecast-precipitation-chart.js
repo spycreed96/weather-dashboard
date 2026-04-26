@@ -170,7 +170,7 @@ export function initPrecipitationForecastChart(day, options = DEFAULT_PRECIPITAT
             afterBody(items) {
               const meta = items[0]?.raw?.__meta;
               if (!meta || meta.probability === null) return "";
-              return `Probabilita': ${meta.probability}%`;
+              return `Probabilità': ${meta.probability}%`;
             },
           },
         },

@@ -7,7 +7,7 @@ export function renderSearchForm() {
     </button>
     <button id="theme-toggle" class="header-action-btn theme-toggle" type="button" title="Cambia tema" aria-label="Cambia tema">&#9790;</button>
 
-    <form id="search-form" class="search-form">
+    <form id="search-form" class="search-form search-form--forecast">
       <input type="text" id="city-input" placeholder="Cerca localita'" autocomplete="off" />
       <button class="search-submit" type="submit" title="Cerca" aria-label="Cerca">&#8981;</button>
       <div id="suggestions" class="suggestions-list"></div>

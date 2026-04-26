@@ -61,11 +61,38 @@ function createInitialWeatherState() {
   };
 }
 
+function renderForecastRouteLoader() {
+  return `
+    <div
+      id="forecast-route-loader"
+      class="forecast-route-loader"
+      role="status"
+      aria-live="polite"
+      aria-atomic="true"
+      aria-label="Caricamento previsioni"
+      aria-hidden="true"
+      hidden
+    >
+      <div class="forecast-route-loader__spinner" aria-hidden="true">
+        <span></span>
+        <span></span>
+        <span></span>
+        <span></span>
+      </div>
+    </div>
+  `;
+}
+
 const weatherState = createInitialWeatherState();
 let weatherRuntime = null;
 
 export function mountWeather(root) {
   unmountWeather();
+
+  const state = weatherState;
+  syncWeatherStateWithPrimaryLocation(state);
+  state.keepSearchInputEmptyOnMount = true;
+  const shouldShowRouteLoader = !state.currentWeather;
 
   const controller = new AbortController();
   weatherRuntime = {
@@ -80,30 +107,31 @@ export function mountWeather(root) {
   root.innerHTML = `
     ${renderSearchForm()}
     ${renderAppSidebar({ activePage: "forecast" })}
-    <div class="app-route-content">
-      ${renderWeatherControls()}
-      <div class="dashboard-content">
-        <div id="current-location-shell" class="current-location-shell">
-          <span
-            id="current-location-home"
-            class="current-location-home"
-            hidden
-            aria-hidden="true"
-          ></span>
-          <p id="current-location" class="current-location">--</p>
+    <div class="app-route-content forecast-route-content">
+      ${renderForecastRouteLoader()}
+      <div id="forecast-stage" class="forecast-stage"${shouldShowRouteLoader ? " hidden" : ""}>
+        ${renderWeatherControls()}
+        <div class="dashboard-content">
+          <div id="current-location-shell" class="current-location-shell">
+            <span
+              id="current-location-home"
+              class="current-location-home"
+              hidden
+              aria-hidden="true"
+            ></span>
+            <p id="current-location" class="current-location">--</p>
+          </div>
+          ${renderWeatherCard()}
+          ${renderForecastPanel()}
+          ${renderWeatherInsightsSection()}
         </div>
-        ${renderWeatherCard()}
-        ${renderForecastPanel()}
-        ${renderWeatherInsightsSection()}
       </div>
     </div>
   `;
 
-  const state = weatherState;
-  syncWeatherStateWithPrimaryLocation(state);
-  state.keepSearchInputEmptyOnMount = true;
   const elements = getElements(root);
   weatherRuntime.elements = elements;
+  setForecastRouteLoadingState(elements, shouldShowRouteLoader);
 
   applySavedTheme(elements.themeToggle);
   updateTemperatureUnitButton(elements, state);
@@ -166,6 +194,8 @@ function getElements(root) {
     currentTime: qs("#current-time", root),
     feelsLike: qs("#feels-like", root),
     dewPoint: qs("#dew-point", root),
+    forecastRouteLoader: qs("#forecast-route-loader", root),
+    forecastStage: qs("#forecast-stage", root),
     forecastChart: qs("#forecast-chart", root),
     forecastFeelsLikeToggle: qs("#forecast-feels-like-toggle", root),
     forecastList: qs("#daily-forecast-list", root),
@@ -269,7 +299,7 @@ function bindRefreshButton(elements, state) {
     setRefreshButtonPendingState(elements, true);
     hideRefreshToast(elements, state);
 
-    const isSuccess = await fetchAndRenderWeather(query, elements, state);
+    const isSuccess = await fetchAndRenderWeather(query, elements, state, { showRouteLoader: false });
 
     if (!weatherRuntime || weatherRuntime.elements !== elements) {
       return;
@@ -295,6 +325,53 @@ function setRefreshButtonPendingState(elements, isPending) {
   elements.refreshDashboard.disabled = isPending;
   elements.refreshDashboard.classList.toggle("is-loading", isPending);
   elements.refreshDashboard.setAttribute("aria-busy", String(isPending));
+}
+
+function setForecastRouteLoadingState(elements, isLoading) {
+  if (!elements.forecastRouteLoader || !elements.forecastStage) {
+    return;
+  }
+
+  if (isLoading) {
+    closeTemperatureSettingsDropdown(elements);
+    closeAllHistoryDropdowns();
+  }
+
+  elements.forecastRouteLoader.hidden = !isLoading;
+  elements.forecastRouteLoader.classList.toggle("is-visible", isLoading);
+  elements.forecastRouteLoader.setAttribute("aria-hidden", String(!isLoading));
+  elements.forecastRouteLoader.setAttribute("aria-busy", String(isLoading));
+
+  elements.forecastStage.hidden = isLoading;
+  elements.forecastStage.setAttribute("aria-hidden", String(isLoading));
+
+  if (!isLoading) {
+    syncForecastLayoutAfterReveal(elements);
+  }
+}
+
+function syncForecastLayoutAfterReveal(elements) {
+  requestAnimationFrame(() => {
+    requestAnimationFrame(() => {
+      if (!weatherRuntime || weatherRuntime.elements !== elements || elements.forecastStage?.hidden) {
+        return;
+      }
+
+      elements.forecastStage.querySelectorAll("canvas").forEach((canvas) => {
+        const chartInstance = canvas._chartInstance;
+        if (chartInstance && typeof chartInstance.resize === "function") {
+          chartInstance.resize();
+          if (typeof chartInstance.update === "function") {
+            chartInstance.update("none");
+          }
+        }
+      });
+
+      updateHistoryNavVisibility(elements);
+      updateForecastNavState(elements);
+      weatherState.cityMap?.invalidateSize?.();
+    });
+  });
 }
 
 function showRefreshToast(elements, state, message, tone) {
@@ -446,11 +523,11 @@ function getForecastPanelTitle(tabId) {
 
 function getForecastPanelCopy(tabId) {
   if (tabId === "precipitation") {
-    return "Accumuli orari, probabilita' e andamento delle precipitazioni previste.";
+    return "Accumuli orari, probabilità e andamento delle precipitazioni previste.";
   }
 
   if (tabId === "wind") {
-    return "Velocita', raffiche e direzione del vento previste durante la giornata.";
+    return "Velocità, raffiche e direzione del vento previste durante la giornata.";
   }
 
   return "Panello orario con vista termica, trend giornaliero e contesto astronomico.";
@@ -842,8 +919,13 @@ function bindGlobalInteractions(elements) {
   }, getWeatherListenerOptions());
 }
 
-async function fetchAndRenderWeather(city, elements, state) {
+async function fetchAndRenderWeather(city, elements, state, options = {}) {
+  const { showRouteLoader = true } = options;
   const requestId = ++state.weatherRequestId;
+
+  if (showRouteLoader) {
+    setForecastRouteLoadingState(elements, true);
+  }
 
   try {
     const data = await fetchWeather(city);
@@ -854,6 +936,11 @@ async function fetchAndRenderWeather(city, elements, state) {
 
     state.activeQuery = city;
     renderWeather(elements, state, data);
+
+    if (showRouteLoader) {
+      setForecastRouteLoadingState(elements, false);
+    }
+
     return true;
   } catch (error) {
     if (!weatherRuntime || weatherRuntime.elements !== elements || requestId !== state.weatherRequestId) {
@@ -863,6 +950,11 @@ async function fetchAndRenderWeather(city, elements, state) {
     console.error("Errore meteo:", error);
     state.pendingHistoryLabel = null;
     resetWeatherPanel(elements, state);
+
+    if (showRouteLoader) {
+      setForecastRouteLoadingState(elements, false);
+    }
+
     return false;
   }
 }

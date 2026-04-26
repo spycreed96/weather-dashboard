@@ -260,7 +260,7 @@ function bindFavoritesAddSearch(elements, state) {
 
       hideFavoritesSuggestions();
       state.addView.candidate = null;
-      state.addView.feedback = "Nessuna localita trovata per questa ricerca.";
+      state.addView.feedback = "Nessuna località trovata per questa ricerca.";
       state.addView.pending = false;
       renderFavoritesAddView(elements, state);
     },
@@ -338,7 +338,7 @@ async function hydratePrimaryLocation(elements, state) {
   const didRefreshFavorites = favoriteResults.some((result) => result.refreshed);
   const failureCount = favoriteResults.filter((result) => !result.refreshed).length + (primaryResult.refreshed ? 0 : 1);
   state.syncStatus = failureCount > 0
-    ? "Alcune localita mostrano ancora l'ultimo snapshot disponibile."
+    ? "Alcune località mostrano ancora l'ultimo snapshot disponibile."
     : "";
 
   if (didRefreshPrimary || didRefreshFavorites) {
@@ -353,7 +353,7 @@ async function loadFavoritePreview(query, elements, state) {
 
   if (!normalizedQuery) {
     state.addView.candidate = null;
-    state.addView.feedback = "Inserisci una localita valida.";
+    state.addView.feedback = "Inserisci una località valida.";
     state.addView.pending = false;
     renderFavoritesAddView(elements, state);
     return;
@@ -382,9 +382,9 @@ async function loadFavoritePreview(query, elements, state) {
     const data = await fetchWeather(query);
     nextCandidate = createFavoriteFromWeather(data, query, { name: query });
   } catch (error) {
-    console.warn("Preferiti: anteprima localita non disponibile", error);
+    console.warn("Preferiti: anteprima località non disponibile", error);
     nextCandidate = createFallbackFavorite(query);
-    nextFeedback = "Meteo live non disponibile. Puoi comunque aggiungere la localita.";
+    nextFeedback = "Meteo live non disponibile. Puoi comunque aggiungere la località.";
   }
 
   if (!isFavoritesAddViewActive(elements, state, requestId)) {
@@ -414,7 +414,7 @@ async function confirmAddFavorite(elements, state) {
   const candidate = normalizeFavorite(state.addView.candidate);
 
   if (!candidate) {
-    state.addView.feedback = "Cerca una localita prima di confermare l'aggiunta.";
+    state.addView.feedback = "Cerca una località prima di confermare l'aggiunta.";
     renderFavoritesAddView(elements, state);
     return;
   }
@@ -468,7 +468,7 @@ async function hydratePrimarySnapshot(primaryLocation) {
       refreshed: true,
     };
   } catch (error) {
-    console.warn("Preferiti: meteo localita principale non disponibile", error);
+    console.warn("Preferiti: meteo località principale non disponibile", error);
 
     return {
       location: fallbackLocation,
@@ -586,7 +586,7 @@ function removeFavoriteFromContextMenu(elements, state) {
   }
 
   applyFavoritesStoreSnapshot(state, removeFavoriteFromStore(favoriteQuery));
-  state.feedback = `${favoriteName || "La localita selezionata"} rimossa dai preferiti.`;
+  state.feedback = `${favoriteName || "La località selezionata"} rimossa dai preferiti.`;
   renderFavorites(elements, state);
 }
 
@@ -596,11 +596,11 @@ function isDuplicateFavorite(favorites, query) {
 
 function getDuplicateLocationMessage(state, query) {
   if (isPrimaryLocationQuery(query) || normalizeQuery(state.primaryLocation?.query) === normalizeQuery(query)) {
-    return "Questa localita e gia impostata come principale.";
+    return "Questa località e gia impostata come principale.";
   }
 
   if (isDuplicateFavorite(state.favorites, query)) {
-    return "Questa localita e gia tra i preferiti.";
+    return "Questa località e gia tra i preferiti.";
   }
 
   return "";
@@ -654,5 +654,5 @@ function resolveFavoritesView(routeState) {
 function getOverviewSyncMessage(state) {
   return state.favorites.length
     ? "Aggiornamento meteo dei preferiti in corso..."
-    : "Aggiornamento localita principale in corso...";
+    : "Aggiornamento località principale in corso...";
 }
