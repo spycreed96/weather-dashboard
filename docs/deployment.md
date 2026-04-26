@@ -43,6 +43,7 @@ Usa `.env.example` come base.
 | `WEATHER_API_KEY` | si | nessuno | Necessaria per tutte le chiamate API dell'app |
 | `WEATHER_API_BASE_URL` | no | `https://api.weatherapi.com/v1` | Override del provider principale |
 | `WEATHER_API_LANGUAGE` | no | `it` | Lingua passata a WeatherAPI |
+| `FRONTEND_API_BASE_URL` | no | `/api` | Usata dal frontend statico separato e dallo script `scripts/generate_frontend_config.py`; puoi impostarla a `https://your-app.onrender.com/api` |
 | `CORS_ALLOWED_ORIGINS` | no | automatico in `development`, vuoto in `production` | Lista separata da virgole da usare solo se frontend e backend sono su origin diversi |
 
 ## Comando di avvio corretto
@@ -95,6 +96,12 @@ Se invece il frontend vive su un origin separato, aggiungi per esempio:
 
 ```dotenv
 CORS_ALLOWED_ORIGINS=https://weather.example.com,https://www.weather.example.com
+```
+
+Se pubblichi il frontend su GitHub Pages, imposta anche la repository variable `FRONTEND_API_BASE_URL` in GitHub Actions con il backend pubblico, per esempio:
+
+```dotenv
+FRONTEND_API_BASE_URL=https://your-app.onrender.com/api
 ```
 
 ### 4. Smoke test manuale
@@ -205,4 +212,4 @@ sudo systemctl status weather-dashboard
 - Il frontend dipende da CDN esterni per alcune librerie.
 - Le tile della mappa arrivano da OpenStreetMap lato browser.
 - Se in `production` non imposti `CORS_ALLOWED_ORIGINS`, il backend non abilita CORS.
-- Se in futuro separi frontend e backend su domini diversi, l'uso del path relativo `/api` richiedera una strategia di proxy coerente o un adattamento del frontend.
+- Se in futuro separi frontend e backend su domini diversi, puoi impostare `FRONTEND_API_BASE_URL` per puntare il frontend al backend pubblico, ma resta comunque necessario configurare `CORS_ALLOWED_ORIGINS`.

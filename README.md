@@ -56,7 +56,9 @@ Se `WEATHER_API_KEY` non è configurata, le route API rispondono con `503`.
 
 ## Note operative
 
-- Il frontend usa path relativi verso `/api`, quindi funziona al meglio quando frontend e backend sono serviti dallo stesso dominio.
+- Il frontend usa `/api` di default quando frontend e backend sono serviti dallo stesso origin.
+- Se pubblichi il solo frontend su GitHub Pages o su un altro host statico, puoi impostare `FRONTEND_API_BASE_URL` al backend pubblico, per esempio `https://your-app.onrender.com/api`.
+- Il workflow `.github/workflows/pages-deploy.yml` legge `FRONTEND_API_BASE_URL` dalle repository variables di GitHub Actions e genera `frontend/config.js` prima del deploy.
 - Se `APP_ENV=production` e frontend e backend restano sullo stesso origin, il backend non abilita CORS.
 - Se separi frontend e backend su origin diversi, imposta `CORS_ALLOWED_ORIGINS` con una lista separata da virgole.
 - `frontend/package.json` contiene solo un server statico di preview. Non è il percorso consigliato per il deploy dell'app completa.
