@@ -1,6 +1,6 @@
 # Weather Dashboard
 
-Weather Dashboard AI è una web app meteo composta da:
+Weather Dashboard è una web app meteo composta da:
 
 - un backend FastAPI in `app/`
 - un frontend statico in `frontend/`
