@@ -1,4 +1,4 @@
-# Weather Dashboard AI
+# Weather Dashboard
 
 Weather Dashboard AI è una web app meteo composta da:
 
