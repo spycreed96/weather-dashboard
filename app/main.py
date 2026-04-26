@@ -26,6 +26,7 @@ def create_app() -> FastAPI:
             allow_methods=["*"],
             allow_headers=["*"],
         )
+        
     app.include_router(weather_router, prefix="/api", tags=["weather"])
 
     if frontend_dir.exists():
