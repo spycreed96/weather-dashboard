@@ -1,0 +1,482 @@
+:root {
+  --bg:
+    radial-gradient(circle at 14% 18%, rgba(112, 183, 255, 0.28), transparent 24%),
+    radial-gradient(circle at 84% 12%, rgba(255, 196, 112, 0.24), transparent 22%),
+    radial-gradient(circle at 56% 72%, rgba(197, 214, 255, 0.2), transparent 30%),
+    linear-gradient(180deg, #f8fbff 0%, #e8f1ff 46%, #eef4ff 100%);
+  --body-glow:
+    radial-gradient(circle at 22% 28%, rgba(255, 255, 255, 0.42), transparent 20%),
+    radial-gradient(circle at 78% 14%, rgba(255, 214, 160, 0.22), transparent 18%);
+  --body-sheen:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.3), transparent 18%),
+    linear-gradient(180deg, transparent 72%, rgba(80, 116, 193, 0.08));
+  --card: linear-gradient(180deg, rgba(255, 255, 255, 0.88), rgba(237, 244, 255, 0.82));
+  --card-border: rgba(111, 146, 211, 0.18);
+  --text: #1c2847;
+  --muted: rgba(40, 53, 88, 0.7);
+  --shadow: 0 24px 60px rgba(58, 84, 140, 0.16);
+  --transition: all 0.3s ease;
+  --accent: #ffbf43;
+  --accent-text: #2d2100;
+  --accent-gradient: linear-gradient(180deg, #ffd86e 0%, #ffbe43 100%);
+  --accent-shadow: 0 12px 28px rgba(255, 190, 67, 0.22);
+  --surface-strong:
+    radial-gradient(circle at top left, rgba(255, 191, 104, 0.18), transparent 26%),
+    radial-gradient(circle at top right, rgba(139, 197, 255, 0.16), transparent 28%),
+    linear-gradient(180deg, rgba(248, 251, 255, 0.96), rgba(232, 240, 255, 0.96));
+  --surface-soft:
+    radial-gradient(circle at top right, rgba(123, 187, 255, 0.16), transparent 34%),
+    linear-gradient(180deg, rgba(255, 255, 255, 0.44), rgba(230, 239, 255, 0.26));
+  --surface-panel:
+    radial-gradient(circle at top right, rgba(124, 218, 255, 0.14), transparent 34%),
+    linear-gradient(180deg, rgba(255, 255, 255, 0.84), rgba(231, 239, 255, 0.8));
+  --surface-overlay: rgba(255, 255, 255, 0.38);
+  --surface-overlay-strong: rgba(255, 255, 255, 0.58);
+  --header-shell-shadow: 0 20px 48px rgba(41, 61, 115, 0.14);
+  --header-inner-bg: linear-gradient(90deg, rgba(255, 255, 255, 0.34), rgba(233, 242, 255, 0.18));
+  --app-menu-bg: rgba(255, 255, 255, 0.38);
+  --app-menu-hover-bg: rgba(255, 255, 255, 0.58);
+  --app-menu-border: rgba(111, 146, 211, 0.16);
+  --app-header-title: #1c2847;
+  --sidebar-bg: linear-gradient(180deg, rgba(248, 251, 255, 0.96), rgba(230, 239, 255, 0.96));
+  --sidebar-shadow: 18px 0 38px rgba(54, 78, 135, 0.12);
+  --sidebar-text: rgba(28, 40, 71, 0.78);
+  --sidebar-text-strong: #1c2847;
+  --sidebar-hover-bg: rgba(114, 168, 255, 0.12);
+  --sidebar-active-rail: #1499ff;
+  --focus-ring: rgba(45, 144, 255, 0.32);
+  --input-bg: rgba(255, 255, 255, 0.58);
+  --input-border: rgba(111, 146, 211, 0.18);
+  --input-text: #1c2847;
+  --input-placeholder: rgba(56, 74, 121, 0.52);
+  --input-focus-bg: rgba(255, 255, 255, 0.78);
+  --input-focus-border: rgba(72, 132, 233, 0.36);
+  --icon-button-bg: rgba(255, 255, 255, 0.4);
+  --icon-button-border: rgba(111, 146, 211, 0.16);
+  --icon-button-text: #1c2847;
+  --icon-button-hover-bg: rgba(255, 255, 255, 0.62);
+  --interactive-shadow: 0 12px 28px rgba(52, 76, 132, 0.12);
+  --overlay-surface: linear-gradient(180deg, rgba(255, 255, 255, 0.96), rgba(236, 244, 255, 0.94));
+  --overlay-border: rgba(111, 146, 211, 0.18);
+  --overlay-shadow: 0 18px 36px rgba(41, 61, 115, 0.18);
+  --overlay-text: #1c2847;
+  --overlay-muted: rgba(56, 74, 121, 0.72);
+  --overlay-hover-bg: rgba(45, 144, 255, 0.1);
+  --toast-surface: rgba(241, 246, 255, 0.96);
+  --toast-border: rgba(111, 146, 211, 0.18);
+  --toast-shadow: 0 18px 40px rgba(41, 61, 115, 0.18);
+  --toast-text: #1c2847;
+  --success-bg: rgba(220, 246, 232, 0.96);
+  --success-border: rgba(73, 177, 113, 0.28);
+  --success-text: #1d5633;
+  --error-bg: rgba(255, 232, 232, 0.96);
+  --error-border: rgba(223, 97, 97, 0.3);
+  --error-text: #7d2323;
+  --loader-color: #2d90ff;
+  --loader-shadow: rgba(45, 144, 255, 0.22);
+  --favorites-view-bg:
+    radial-gradient(circle at top right, rgba(79, 167, 255, 0.18), transparent 30%),
+    radial-gradient(circle at 12% 16%, rgba(255, 202, 126, 0.18), transparent 24%),
+    linear-gradient(180deg, rgba(250, 252, 255, 0.98), rgba(234, 242, 255, 0.98));
+  --favorites-code-bg: rgba(255, 255, 255, 0.52);
+  --favorites-code-border: rgba(111, 146, 211, 0.14);
+  --favorites-code-text: #245593;
+  --favorites-title: #1c2847;
+  --favorites-eyebrow: rgba(74, 101, 158, 0.72);
+  --favorites-copy: rgba(42, 58, 98, 0.76);
+  --favorites-badge-bg: rgba(45, 144, 255, 0.12);
+  --favorites-badge-border: rgba(45, 144, 255, 0.18);
+  --favorites-badge-text: #2d6dcc;
+  --primary-action-bg: linear-gradient(180deg, #3796ff 0%, #2177e8 100%);
+  --primary-action-hover-bg: linear-gradient(180deg, #4aa1ff 0%, #2f84ef 100%);
+  --primary-action-text: #ffffff;
+  --favorite-card-bg: linear-gradient(145deg, #5dafff 0%, #2e80f0 100%);
+  --favorite-card-primary-bg: linear-gradient(145deg, #5dafff 0%, #2e80f0 100%);
+  --favorite-card-border: rgba(111, 146, 211, 0.18);
+  --favorite-card-shadow: 0 18px 36px rgba(52, 76, 132, 0.14);
+  --favorite-card-hover-shadow: 0 20px 40px rgba(41, 61, 115, 0.18);
+  --favorite-card-primary-shadow: 0 24px 44px rgba(39, 89, 168, 0.24);
+  --favorite-card-text: #ffffff;
+  --favorite-card-primary-text: #ffffff;
+  --favorite-card-muted: rgba(238, 246, 255, 0.84);
+  --favorite-card-primary-muted: rgba(238, 246, 255, 0.84);
+  --favorite-card-icon: rgba(223, 242, 255, 0.94);
+  --favorite-card-primary-icon: rgba(223, 242, 255, 0.94);
+  --favorites-empty-bg: rgba(255, 255, 255, 0.46);
+  --favorites-empty-border: rgba(111, 146, 211, 0.14);
+  --favorites-menu-bg: linear-gradient(180deg, rgba(255, 255, 255, 0.96), rgba(234, 242, 255, 0.94));
+  --favorites-menu-border: rgba(111, 146, 211, 0.18);
+  --favorites-menu-shadow: 0 18px 32px rgba(41, 61, 115, 0.18);
+  --favorites-menu-text: #1c2847;
+  --favorites-stage-bg: rgba(255, 255, 255, 0.34);
+  --favorites-stage-border: rgba(111, 146, 211, 0.14);
+  --favorites-preview-bg: linear-gradient(180deg, rgba(78, 157, 255, 0.12), rgba(255, 255, 255, 0.42));
+  --favorites-preview-border: rgba(45, 144, 255, 0.18);
+  --secondary-action-border: rgba(111, 146, 211, 0.22);
+  --secondary-action-text: #1c2847;
+  --secondary-action-hover-border: rgba(45, 144, 255, 0.46);
+  --secondary-action-hover-text: #2d6dcc;
+  --forecast-panel-bg:
+    radial-gradient(circle at top left, rgba(255, 181, 103, 0.16), transparent 24%),
+    radial-gradient(circle at top right, rgba(126, 193, 255, 0.16), transparent 28%),
+    linear-gradient(180deg, rgba(255, 255, 255, 0.88), rgba(232, 240, 255, 0.86));
+  --forecast-panel-text: #1c2847;
+  --forecast-panel-muted: rgba(53, 72, 118, 0.74);
+  --forecast-panel-soft-text: rgba(69, 91, 143, 0.7);
+  --forecast-chip-bg: rgba(255, 255, 255, 0.46);
+  --forecast-chip-border: rgba(111, 146, 211, 0.18);
+  --forecast-chip-text: rgba(28, 40, 71, 0.84);
+  --forecast-chip-active-bg: rgba(45, 144, 255, 0.14);
+  --forecast-chip-active-text: #1c2847;
+  --forecast-toggle-shell-bg: rgba(255, 255, 255, 0.54);
+  --forecast-toggle-shell-border: rgba(111, 146, 211, 0.18);
+  --forecast-toggle-shell-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.52);
+  --forecast-toggle-pill-text: rgba(58, 76, 122, 0.72);
+  --forecast-toggle-pill-active-bg: rgba(45, 144, 255, 0.16);
+  --forecast-toggle-pill-active-text: #1c2847;
+  --forecast-switch-bg: rgba(111, 146, 211, 0.28);
+  --forecast-switch-thumb: #fff2be;
+  --forecast-switch-active-bg: #3b82f6;
+  --forecast-switch-active-thumb: #ffffff;
+  --forecast-focus-outline: rgba(255, 192, 84, 0.72);
+  --forecast-control-focus: rgba(86, 181, 255, 0.78);
+  --forecast-carousel-bg: linear-gradient(180deg, rgba(255, 255, 255, 0.4), rgba(228, 236, 255, 0.2));
+  --forecast-carousel-border: rgba(111, 146, 211, 0.16);
+  --forecast-nav-btn-bg: rgba(255, 255, 255, 0.66);
+  --forecast-nav-btn-border: rgba(111, 146, 211, 0.16);
+  --forecast-nav-btn-text: #1c2847;
+  --forecast-day-card-bg: linear-gradient(180deg, rgba(255, 255, 255, 0.58), rgba(231, 239, 255, 0.26));
+  --forecast-day-card-border: rgba(111, 146, 211, 0.16);
+  --forecast-day-card-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.48);
+  --forecast-day-card-text: #1c2847;
+  --forecast-day-card-muted: rgba(53, 72, 118, 0.74);
+  --forecast-day-card-soft: rgba(69, 91, 143, 0.68);
+  --forecast-day-card-hover-border: rgba(111, 146, 211, 0.28);
+  --forecast-day-card-active-bg:
+    radial-gradient(circle at top left, rgba(255, 214, 122, 0.2), transparent 42%),
+    linear-gradient(180deg, rgba(255, 233, 174, 0.34), rgba(255, 255, 255, 0.46));
+  --forecast-day-card-active-border: rgba(255, 191, 75, 0.42);
+  --forecast-day-card-active-shadow: 0 12px 28px rgba(61, 88, 148, 0.16);
+  --forecast-chart-bg:
+    radial-gradient(circle at top, rgba(255, 179, 122, 0.16), transparent 52%),
+    linear-gradient(180deg, rgba(255, 255, 255, 0.62), rgba(228, 236, 255, 0.24));
+  --forecast-chart-border: rgba(111, 146, 211, 0.18);
+  --forecast-chart-shadow-inset: inset 0 1px 0 rgba(255, 255, 255, 0.56);
+  --forecast-chart-kicker: rgba(69, 91, 143, 0.66);
+  --forecast-chart-title: #1c2847;
+  --forecast-chart-status-bg: rgba(255, 255, 255, 0.52);
+  --forecast-chart-status-border: rgba(111, 146, 211, 0.16);
+  --forecast-chart-status-text: rgba(28, 40, 71, 0.82);
+  --forecast-chart-status-dot-bg: linear-gradient(180deg, #f1f5ff 0%, #afc3ff 100%);
+  --forecast-chart-status-dot-ring: rgba(45, 144, 255, 0.08);
+  --forecast-chart-time: rgba(53, 72, 118, 0.74);
+  --forecast-chart-value: #1c2847;
+  --forecast-chart-grid: rgba(111, 146, 211, 0.18);
+  --forecast-chart-vertical: rgba(111, 146, 211, 0.14);
+  --forecast-chart-axis: rgba(69, 91, 143, 0.68);
+  --forecast-day-chart-line: rgba(40, 104, 201, 0.98);
+  --forecast-day-chart-fill: rgba(255, 213, 138, 0.22);
+  --forecast-day-chart-feels-line: rgba(122, 143, 196, 0.96);
+  --forecast-chart-point: #fef0bb;
+  --forecast-chart-point-border: rgba(255, 193, 80, 0.92);
+  --forecast-chart-point-hover: #1c2847;
+  --forecast-chart-point-now: #ffc857;
+  --forecast-chart-legend-text: rgba(28, 40, 71, 0.82);
+  --forecast-chart-legend-dash: rgba(110, 129, 177, 0.82);
+  --forecast-chart-lunar-shadow: rgba(121, 136, 176, 0.5);
+  --forecast-control-text: rgba(28, 40, 71, 0.84);
+  --forecast-control-indicator-border: rgba(69, 91, 143, 0.56);
+  --forecast-control-track-on: #1d8ad7;
+  --forecast-control-track-off: rgba(111, 146, 211, 0.24);
+  --forecast-control-thumb: #ffffff;
+  --forecast-legend-rain: #4272ff;
+  --forecast-legend-snow: #84c3ff;
+  --forecast-legend-mixed: #69e5ff;
+  --forecast-legend-accumulation: #7edcff;
+  --forecast-wind-fill: rgba(81, 136, 207, 0.34);
+  --forecast-wind-stroke: rgba(89, 148, 221, 0.96);
+  --forecast-legend-wind-dot: rgba(81, 136, 207, 0.86);
+  --forecast-legend-wind-line: #7abeff;
+  --insight-card-bg: linear-gradient(180deg, rgba(255, 255, 255, 0.92), rgba(234, 242, 255, 0.84));
+  --insight-card-border: rgba(111, 146, 211, 0.18);
+  --insight-card-shadow: 0 18px 38px rgba(52, 76, 132, 0.16);
+  --insight-card-text: #1c2847;
+  --insight-card-muted: rgba(53, 72, 118, 0.76);
+  --insight-card-soft-text: rgba(69, 91, 143, 0.74);
+  --insight-card-sheen: linear-gradient(180deg, rgba(255, 255, 255, 0.52), transparent);
+  --insight-disc-bg: rgba(255, 255, 255, 0.44);
+  --insight-disc-border: rgba(111, 146, 211, 0.18);
+  --insight-line: #23cfe1;
+  --insight-line-tail: rgba(111, 146, 211, 0.2);
+  --insight-line-alt: #7fb8ff;
+  --insight-line-alt-tail: rgba(111, 146, 211, 0.18);
+  --insight-point: #24d5e6;
+  --insight-point-stroke: rgba(255, 255, 255, 0.96);
+  --insight-compass-ring: rgba(111, 146, 211, 0.22);
+  --insight-compass-center: #5ed38d;
+  --insight-compass-center-border: rgba(255, 255, 255, 0.96);
+  --insight-compass-letter: rgba(69, 91, 143, 0.76);
+  --insight-value-unit: rgba(53, 72, 118, 0.74);
+  --insight-bar-bg: rgba(111, 146, 211, 0.18);
+  --insight-bar-fill: rgba(117, 143, 255, 0.18);
+  --insight-bar-fill-active: linear-gradient(180deg, #7a98ff 0%, #6cc3ff 100%);
+  --insight-gauge-track: rgba(111, 146, 211, 0.22);
+  --insight-gauge-subtext: rgba(53, 72, 118, 0.76);
+  --insight-gauge-marker-stroke: rgba(255, 255, 255, 0.96);
+  --insight-visibility-bar: linear-gradient(90deg, #39c26c 0%, #97d89f 100%);
+  --insight-pressure-line: #7fb8ff;
+  --insight-pressure-tail: rgba(111, 146, 211, 0.2);
+  --insight-moon-phase-outline: rgba(111, 146, 211, 0.18);
+  --insight-shadow-path: rgba(111, 146, 211, 0.18);
+  --insight-horizon: rgba(111, 146, 211, 0.24);
+  --insight-horizon-point-fill: rgba(255, 255, 255, 0.96);
+  --insight-horizon-point-stroke: rgba(111, 146, 211, 0.22);
+  --insight-divider: rgba(111, 146, 211, 0.16);
+  --insight-label: rgba(69, 91, 143, 0.72);
+  --insight-description: rgba(28, 40, 71, 0.84);
+  --insight-area-start: rgba(72, 194, 255, 0.28);
+  --insight-area-end: rgba(72, 194, 255, 0.06);
+  --insight-sun-arc-start: #e35f5d;
+  --insight-sun-arc-mid: #db4a52;
+  --insight-sun-arc-end: #8537bd;
+  --insight-sun-backdrop: rgba(255, 255, 255, 0.96);
+}
+
+.dark {
+  --bg:
+    radial-gradient(circle at 14% 18%, rgba(91, 143, 255, 0.28), transparent 24%),
+    radial-gradient(circle at 84% 14%, rgba(255, 182, 88, 0.16), transparent 22%),
+    linear-gradient(180deg, #1c2446 0%, #17203d 42%, #11182f 100%);
+  --body-glow:
+    radial-gradient(circle at 24% 30%, rgba(255, 255, 255, 0.16), transparent 20%),
+    radial-gradient(circle at 78% 16%, rgba(255, 210, 150, 0.14), transparent 18%);
+  --body-sheen:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.08), transparent 18%),
+    linear-gradient(180deg, transparent 72%, rgba(19, 28, 58, 0.08));
+  --card: linear-gradient(180deg, rgba(49, 58, 104, 0.78), rgba(31, 40, 76, 0.84));
+  --card-border: rgba(147, 181, 255, 0.16);
+  --text: #ffffff;
+  --muted: rgba(232, 238, 255, 0.74);
+  --accent: #ffc857;
+  --accent-text: #1a1a1a;
+  --accent-gradient: linear-gradient(180deg, #ffd14a 0%, #ffb628 100%);
+  --accent-shadow: 0 10px 24px rgba(255, 182, 40, 0.18);
+  --shadow: 0 26px 64px rgba(7, 12, 32, 0.42);
+  --surface-strong:
+    radial-gradient(circle at top left, rgba(255, 182, 94, 0.12), transparent 26%),
+    linear-gradient(180deg, rgba(56, 62, 114, 0.96), rgba(31, 39, 77, 0.98));
+  --surface-soft:
+    radial-gradient(circle at top right, rgba(123, 187, 255, 0.14), transparent 34%),
+    linear-gradient(180deg, rgba(255, 255, 255, 0.12), rgba(255, 255, 255, 0.04));
+  --surface-panel:
+    radial-gradient(circle at top right, rgba(124, 218, 255, 0.16), transparent 34%),
+    linear-gradient(180deg, rgba(55, 64, 116, 0.9), rgba(34, 43, 80, 0.94));
+  --surface-overlay: rgba(255, 255, 255, 0.08);
+  --surface-overlay-strong: rgba(255, 255, 255, 0.14);
+  --header-shell-shadow: 0 18px 40px rgba(15, 21, 49, 0.24);
+  --header-inner-bg: rgba(17, 17, 18, 0.56);
+  --app-menu-bg: #151719;
+  --app-menu-hover-bg: #1d2023;
+  --app-menu-border: rgba(255, 255, 255, 0.06);
+  --app-header-title: #ffffff;
+  --sidebar-bg: linear-gradient(180deg, rgba(27, 29, 31, 0.98), rgba(21, 24, 28, 0.98));
+  --sidebar-shadow: 18px 0 38px rgba(0, 0, 0, 0.26);
+  --sidebar-text: rgba(255, 255, 255, 0.88);
+  --sidebar-text-strong: #ffffff;
+  --sidebar-hover-bg: rgba(255, 255, 255, 0.06);
+  --sidebar-active-rail: #1499ff;
+  --focus-ring: rgba(45, 144, 255, 0.42);
+  --input-bg: rgba(255, 255, 255, 0.08);
+  --input-border: rgba(255, 255, 255, 0.08);
+  --input-text: #ffffff;
+  --input-placeholder: rgba(255, 255, 255, 0.64);
+  --input-focus-bg: rgba(255, 255, 255, 0.11);
+  --input-focus-border: rgba(255, 255, 255, 0.18);
+  --icon-button-bg: rgba(255, 255, 255, 0.05);
+  --icon-button-border: rgba(255, 255, 255, 0.08);
+  --icon-button-text: #ffffff;
+  --icon-button-hover-bg: rgba(255, 255, 255, 0.1);
+  --interactive-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  --overlay-surface: linear-gradient(180deg, rgba(19, 24, 46, 0.96), rgba(30, 37, 70, 0.96));
+  --overlay-border: rgba(255, 255, 255, 0.1);
+  --overlay-shadow: 0 18px 36px rgba(0, 0, 0, 0.34);
+  --overlay-text: #ffffff;
+  --overlay-muted: rgba(255, 255, 255, 0.68);
+  --overlay-hover-bg: rgba(255, 255, 255, 0.06);
+  --toast-surface: rgba(22, 22, 28, 0.92);
+  --toast-border: rgba(255, 255, 255, 0.1);
+  --toast-shadow: 0 18px 40px rgba(0, 0, 0, 0.34);
+  --toast-text: #ffffff;
+  --success-bg: rgba(34, 71, 47, 0.92);
+  --success-border: rgba(119, 230, 154, 0.34);
+  --success-text: #ebfff1;
+  --error-bg: rgba(73, 34, 34, 0.94);
+  --error-border: rgba(255, 127, 127, 0.34);
+  --error-text: #ffe5e5;
+  --loader-color: #2d90ff;
+  --loader-shadow: rgba(45, 144, 255, 0.3);
+  --favorites-view-bg:
+    radial-gradient(circle at top right, rgba(0, 103, 177, 0.22), transparent 28%),
+    linear-gradient(180deg, #1f1f1f 0%, #16181d 100%);
+  --favorites-code-bg: rgba(255, 255, 255, 0.08);
+  --favorites-code-border: rgba(255, 255, 255, 0.08);
+  --favorites-code-text: #ebf6ff;
+  --favorites-title: #f4f4f4;
+  --favorites-eyebrow: rgba(255, 255, 255, 0.68);
+  --favorites-copy: rgba(255, 255, 255, 0.78);
+  --favorites-badge-bg: rgba(172, 221, 255, 0.12);
+  --favorites-badge-border: rgba(172, 221, 255, 0.22);
+  --favorites-badge-text: #acdfff;
+  --primary-action-bg: linear-gradient(180deg, #0d8ad4 0%, #0067b1 100%);
+  --primary-action-hover-bg: linear-gradient(180deg, #1796df 0%, #0875c9 100%);
+  --primary-action-text: #ffffff;
+  --favorite-card-bg: linear-gradient(180deg, #0067b1 0%, #04558f 100%);
+  --favorite-card-primary-bg: linear-gradient(145deg, #0d8ad4 0%, #04558f 100%);
+  --favorite-card-border: rgba(172, 221, 255, 0.1);
+  --favorite-card-shadow: none;
+  --favorite-card-hover-shadow: 0 12px 24px rgba(0, 0, 0, 0.22);
+  --favorite-card-primary-shadow: 0 22px 44px rgba(0, 0, 0, 0.24);
+  --favorite-card-text: #ffffff;
+  --favorite-card-primary-text: #ffffff;
+  --favorite-card-muted: rgba(255, 255, 255, 0.82);
+  --favorite-card-primary-muted: rgba(255, 255, 255, 0.84);
+  --favorite-card-icon: rgba(172, 221, 255, 0.95);
+  --favorite-card-primary-icon: rgba(172, 221, 255, 0.95);
+  --favorites-empty-bg: rgba(255, 255, 255, 0.04);
+  --favorites-empty-border: rgba(255, 255, 255, 0.08);
+  --favorites-menu-bg: linear-gradient(180deg, #0f4f86 0%, #0a3d67 100%);
+  --favorites-menu-border: rgba(172, 221, 255, 0.18);
+  --favorites-menu-shadow: 0 18px 32px rgba(0, 0, 0, 0.34);
+  --favorites-menu-text: #ffffff;
+  --favorites-stage-bg: rgba(255, 255, 255, 0.03);
+  --favorites-stage-border: rgba(255, 255, 255, 0.08);
+  --favorites-preview-bg: linear-gradient(180deg, rgba(0, 103, 177, 0.14), rgba(0, 103, 177, 0.04));
+  --favorites-preview-border: rgba(172, 221, 255, 0.14);
+  --secondary-action-border: rgba(255, 255, 255, 0.18);
+  --secondary-action-text: #ffffff;
+  --secondary-action-hover-border: rgba(172, 221, 255, 0.58);
+  --secondary-action-hover-text: #acdfff;
+  --forecast-panel-bg:
+    radial-gradient(circle at top left, rgba(255, 177, 94, 0.1), transparent 24%),
+    linear-gradient(180deg, rgba(53, 57, 105, 0.96), rgba(39, 45, 88, 0.98));
+  --forecast-panel-text: #ffffff;
+  --forecast-panel-muted: rgba(235, 238, 255, 0.72);
+  --forecast-panel-soft-text: rgba(235, 238, 255, 0.68);
+  --forecast-chip-bg: rgba(255, 255, 255, 0.05);
+  --forecast-chip-border: rgba(255, 255, 255, 0.08);
+  --forecast-chip-text: rgba(235, 238, 255, 0.84);
+  --forecast-chip-active-bg: rgba(255, 255, 255, 0.14);
+  --forecast-chip-active-text: #ffffff;
+  --forecast-toggle-shell-bg: rgba(16, 20, 41, 0.62);
+  --forecast-toggle-shell-border: rgba(255, 255, 255, 0.08);
+  --forecast-toggle-shell-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.04);
+  --forecast-toggle-pill-text: rgba(235, 238, 255, 0.68);
+  --forecast-toggle-pill-active-bg: rgba(255, 255, 255, 0.14);
+  --forecast-toggle-pill-active-text: #ffffff;
+  --forecast-switch-bg: rgba(255, 255, 255, 0.22);
+  --forecast-switch-thumb: #fff2be;
+  --forecast-switch-active-bg: #3b82f6;
+  --forecast-switch-active-thumb: #ffffff;
+  --forecast-focus-outline: rgba(255, 200, 80, 0.22);
+  --forecast-control-focus: rgba(126, 220, 255, 0.86);
+  --forecast-carousel-bg: linear-gradient(180deg, rgba(17, 21, 48, 0.28), rgba(255, 255, 255, 0.02));
+  --forecast-carousel-border: rgba(255, 255, 255, 0.08);
+  --forecast-nav-btn-bg: rgba(28, 32, 62, 0.96);
+  --forecast-nav-btn-border: rgba(255, 255, 255, 0.08);
+  --forecast-nav-btn-text: #ffffff;
+  --forecast-day-card-bg: linear-gradient(180deg, rgba(255, 255, 255, 0.08), rgba(255, 255, 255, 0.03));
+  --forecast-day-card-border: rgba(255, 255, 255, 0.08);
+  --forecast-day-card-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.04);
+  --forecast-day-card-text: #ffffff;
+  --forecast-day-card-muted: rgba(235, 238, 255, 0.72);
+  --forecast-day-card-soft: rgba(235, 238, 255, 0.62);
+  --forecast-day-card-hover-border: rgba(255, 255, 255, 0.22);
+  --forecast-day-card-active-bg:
+    radial-gradient(circle at top left, rgba(255, 221, 110, 0.22), transparent 42%),
+    linear-gradient(180deg, rgba(255, 205, 90, 0.14), rgba(255, 255, 255, 0.05));
+  --forecast-day-card-active-border: rgba(255, 205, 90, 0.55);
+  --forecast-day-card-active-shadow: 0 12px 28px rgba(0, 0, 0, 0.16);
+  --forecast-chart-bg:
+    radial-gradient(circle at top, rgba(255, 171, 125, 0.16), transparent 52%),
+    linear-gradient(180deg, rgba(20, 24, 54, 0.54), rgba(255, 255, 255, 0.02));
+  --forecast-chart-border: rgba(255, 255, 255, 0.12);
+  --forecast-chart-shadow-inset: inset 0 1px 0 rgba(255, 255, 255, 0.04);
+  --forecast-chart-kicker: rgba(235, 238, 255, 0.6);
+  --forecast-chart-title: #ffffff;
+  --forecast-chart-status-bg: rgba(255, 255, 255, 0.05);
+  --forecast-chart-status-border: rgba(255, 255, 255, 0.08);
+  --forecast-chart-status-text: rgba(255, 255, 255, 0.82);
+  --forecast-chart-status-dot-bg: linear-gradient(180deg, #f1f4ff 0%, #b9c7ff 100%);
+  --forecast-chart-status-dot-ring: rgba(255, 255, 255, 0.08);
+  --forecast-chart-time: rgba(235, 238, 255, 0.72);
+  --forecast-chart-value: #ffffff;
+  --forecast-chart-grid: rgba(255, 255, 255, 0.12);
+  --forecast-chart-vertical: rgba(255, 255, 255, 0.12);
+  --forecast-chart-axis: rgba(235, 238, 255, 0.62);
+  --forecast-day-chart-line: rgba(246, 246, 242, 0.96);
+  --forecast-day-chart-fill: rgba(255, 213, 138, 0.24);
+  --forecast-day-chart-feels-line: rgba(176, 188, 213, 0.96);
+  --forecast-chart-point: #f9f4d1;
+  --forecast-chart-point-border: rgba(255, 214, 132, 0.9);
+  --forecast-chart-point-hover: #ffffff;
+  --forecast-chart-point-now: #ffc857;
+  --forecast-chart-legend-text: rgba(235, 238, 255, 0.82);
+  --forecast-chart-legend-dash: rgba(177, 188, 213, 0.86);
+  --forecast-chart-lunar-shadow: rgba(45, 54, 95, 0.66);
+  --forecast-control-text: rgba(235, 238, 255, 0.82);
+  --forecast-control-indicator-border: rgba(235, 238, 255, 0.72);
+  --forecast-control-track-on: #1d8ad7;
+  --forecast-control-track-off: rgba(255, 255, 255, 0.18);
+  --forecast-control-thumb: #ffffff;
+  --forecast-legend-rain: #4272ff;
+  --forecast-legend-snow: #84c3ff;
+  --forecast-legend-mixed: #69e5ff;
+  --forecast-legend-accumulation: #7edcff;
+  --forecast-wind-fill: rgba(81, 136, 207, 0.44);
+  --forecast-wind-stroke: rgba(113, 175, 245, 0.96);
+  --forecast-legend-wind-dot: rgba(81, 136, 207, 0.86);
+  --forecast-legend-wind-line: #7abeff;
+  --insight-card-bg: linear-gradient(180deg, #2d3560 0%, #263152 100%);
+  --insight-card-border: rgba(110, 198, 255, 0.18);
+  --insight-card-shadow: 0 18px 38px rgba(16, 21, 53, 0.28);
+  --insight-card-text: #ffffff;
+  --insight-card-muted: rgba(255, 255, 255, 0.72);
+  --insight-card-soft-text: rgba(255, 255, 255, 0.78);
+  --insight-card-sheen: linear-gradient(180deg, rgba(255, 255, 255, 0.08), transparent);
+  --insight-disc-bg: rgba(255, 255, 255, 0.08);
+  --insight-disc-border: rgba(255, 255, 255, 0.1);
+  --insight-line: #22d2e4;
+  --insight-line-tail: rgba(255, 255, 255, 0.14);
+  --insight-line-alt: #9ecfff;
+  --insight-line-alt-tail: rgba(255, 255, 255, 0.12);
+  --insight-point: #24d5e6;
+  --insight-point-stroke: #ffffff;
+  --insight-compass-ring: rgba(255, 255, 255, 0.12);
+  --insight-compass-center: #5ed38d;
+  --insight-compass-center-border: #202a45;
+  --insight-compass-letter: rgba(255, 255, 255, 0.76);
+  --insight-value-unit: rgba(255, 255, 255, 0.74);
+  --insight-bar-bg: rgba(255, 255, 255, 0.1);
+  --insight-bar-fill: rgba(117, 143, 255, 0.2);
+  --insight-bar-fill-active: linear-gradient(180deg, #7a98ff 0%, #6cc3ff 100%);
+  --insight-gauge-track: rgba(255, 255, 255, 0.12);
+  --insight-gauge-subtext: rgba(255, 255, 255, 0.82);
+  --insight-gauge-marker-stroke: #ffffff;
+  --insight-visibility-bar: linear-gradient(90deg, #39c26c 0%, #97d89f 100%);
+  --insight-pressure-line: #9bc8ff;
+  --insight-pressure-tail: rgba(255, 255, 255, 0.14);
+  --insight-moon-phase-outline: rgba(255, 255, 255, 0.12);
+  --insight-shadow-path: rgba(255, 255, 255, 0.12);
+  --insight-horizon: rgba(255, 255, 255, 0.18);
+  --insight-horizon-point-fill: rgba(255, 255, 255, 0.92);
+  --insight-horizon-point-stroke: rgba(255, 255, 255, 0.22);
+  --insight-divider: rgba(255, 255, 255, 0.08);
+  --insight-label: rgba(255, 255, 255, 0.65);
+  --insight-description: rgba(255, 255, 255, 0.84);
+  --insight-area-start: rgba(72, 194, 255, 0.34);
+  --insight-area-end: rgba(72, 194, 255, 0.06);
+  --insight-sun-arc-start: #e35f5d;
+  --insight-sun-arc-mid: #db4a52;
+  --insight-sun-arc-end: #8537bd;
+  --insight-sun-backdrop: rgba(255, 255, 255, 0.97);
+}
