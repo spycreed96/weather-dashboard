@@ -8,6 +8,10 @@ Weather Dashboard è una web app meteo composta da:
 
 L'architettura attuale è pensata per un deploy single-origin: il backend espone le API sotto `/api` e serve anche il frontend statico dalla root `/`.
 
+## Live demo
+
+Puoi provare l'app qui: [weather-dashboard-sgjm.onrender.com](https://weather-dashboard-sgjm.onrender.com)
+
 ## Struttura del repository
 
 - `app/`: backend FastAPI e logica meteo
