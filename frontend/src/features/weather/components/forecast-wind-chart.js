@@ -55,6 +55,7 @@ export function renderWindForecastChart(day, options = DEFAULT_WIND_OPTIONS) {
 export function initWindForecastChart(day, options = DEFAULT_WIND_OPTIONS) {
   const canvas = document.getElementById("forecast-wind-chart-canvas");
   if (!canvas || typeof Chart === "undefined" || !day) return null;
+  const rootStyles = getComputedStyle(document.documentElement);
 
   const resolvedOptions = { ...DEFAULT_WIND_OPTIONS, ...options };
   const points = getWindPoints(day);
@@ -76,6 +77,11 @@ export function initWindForecastChart(day, options = DEFAULT_WIND_OPTIONS) {
     ...speedData.map((item) => item.y),
     ...(resolvedOptions.showGusts ? gustData.map((item) => item.y) : []),
   ]);
+  const speedAreaColor = readThemeValue(rootStyles, "--forecast-wind-fill", "rgba(81, 136, 207, 0.44)");
+  const speedLineColor = readThemeValue(rootStyles, "--forecast-wind-stroke", "rgba(113, 175, 245, 0.96)");
+  const gustLineColor = readThemeValue(rootStyles, "--forecast-legend-wind-line", "rgba(122, 190, 255, 0.98)");
+  const gridColor = readThemeValue(rootStyles, "--forecast-chart-grid", "rgba(255, 255, 255, 0.08)");
+  const axisColor = readThemeValue(rootStyles, "--forecast-chart-axis", "rgba(235, 238, 255, 0.72)");
   const windLabelsPlugin = createWindLabelsPlugin(points);
 
   const datasets = [
@@ -83,8 +89,8 @@ export function initWindForecastChart(day, options = DEFAULT_WIND_OPTIONS) {
       type: "line",
       label: "Velocità del vento",
       data: speedData,
-      borderColor: "rgba(113, 175, 245, 0.96)",
-      backgroundColor: "rgba(81, 136, 207, 0.44)",
+      borderColor: speedLineColor,
+      backgroundColor: speedAreaColor,
       borderWidth: 0,
       borderCapStyle: "round",
       borderJoinStyle: "round",
@@ -101,7 +107,7 @@ export function initWindForecastChart(day, options = DEFAULT_WIND_OPTIONS) {
       type: "line",
       label: "Raffiche di vento",
       data: gustData,
-      borderColor: "rgba(122, 190, 255, 0.98)",
+      borderColor: gustLineColor,
       backgroundColor: "rgba(122, 190, 255, 0)",
       borderWidth: 2,
       borderCapStyle: "round",
@@ -148,7 +154,7 @@ export function initWindForecastChart(day, options = DEFAULT_WIND_OPTIONS) {
           type: "time",
           time: { unit: "hour", displayFormats: { hour: "HH:mm" } },
           grid: {
-            color: "rgba(255, 255, 255, 0.07)",
+            color: gridColor,
             drawBorder: false,
           },
           ticks: { display: false },
@@ -158,7 +164,7 @@ export function initWindForecastChart(day, options = DEFAULT_WIND_OPTIONS) {
           max: yMaximum,
           position: "left",
           grid: {
-            color: "rgba(255, 255, 255, 0.08)",
+            color: gridColor,
             drawBorder: false,
           },
           ticks: {
@@ -168,7 +174,7 @@ export function initWindForecastChart(day, options = DEFAULT_WIND_OPTIONS) {
           title: {
             display: true,
             text: "km/h",
-            color: "rgba(235, 238, 255, 0.72)",
+            color: axisColor,
             font: { size: 12, weight: "700" },
           },
         },
@@ -228,7 +234,7 @@ function createWindLabelsPlugin(points) {
         if (!shouldRenderWindLabel(item)) return;
 
         ctx.font = "12px system-ui, Arial";
-        ctx.fillStyle = "rgba(235, 238, 255, 0.78)";
+        ctx.fillStyle = readThemeValue(getComputedStyle(document.documentElement), "--forecast-chart-axis", "rgba(235, 238, 255, 0.78)");
         ctx.fillText(item.label, x, chartArea.top - 42);
 
         drawWindArrow(ctx, x, chartArea.top - 20, item.direction);
@@ -246,7 +252,7 @@ function drawWindArrow(ctx, x, y, direction) {
   ctx.save();
   ctx.translate(x, y);
   ctx.rotate((pushDirection * Math.PI) / 180);
-  ctx.fillStyle = "rgba(246, 248, 255, 0.96)";
+  ctx.fillStyle = readThemeValue(getComputedStyle(document.documentElement), "--forecast-chart-title", "rgba(246, 248, 255, 0.96)");
   ctx.beginPath();
   ctx.moveTo(0, -10);
   ctx.lineTo(5, 7);
@@ -342,4 +348,9 @@ function formatDirection(direction, label) {
   const directionValue = Number(direction);
   const degreeLabel = Number.isFinite(directionValue) ? `${Math.round(directionValue)} gradi` : "n/d";
   return label ? `${label} (${degreeLabel})` : degreeLabel;
+}
+
+function readThemeValue(rootStyles, propertyName, fallback) {
+  const value = (rootStyles.getPropertyValue(propertyName) || "").trim();
+  return value || fallback;
 }

@@ -11,6 +11,7 @@ export function initForecastDayChart(day, unit = "celsius", showFeelsLike = fals
   const canvas = document.getElementById("forecast-day-chart-canvas");
   if (!canvas || typeof Chart === "undefined") return null;
   if (!day) return null;
+  const rootStyles = getComputedStyle(document.documentElement);
 
   const hourly = Array.isArray(day.hourly_forecast) ? day.hourly_forecast : [];
 
@@ -78,6 +79,9 @@ export function initForecastDayChart(day, unit = "celsius", showFeelsLike = fals
 
   if (canvas._chartInstance) canvas._chartInstance.destroy();
   const ctx = canvas.getContext("2d");
+  const lineColor = readThemeValue(rootStyles, "--forecast-day-chart-line", "rgba(246, 246, 242, 0.96)");
+  const fillColor = readThemeValue(rootStyles, "--forecast-day-chart-fill", "rgba(255, 213, 138, 0.24)");
+  const feelsLikeLineColor = readThemeValue(rootStyles, "--forecast-day-chart-feels-line", "rgba(176, 188, 213, 0.96)");
 
   const labelItems = tempData.map((point) => {
     const ms = typeof point.x === "string" ? Date.parse(point.x) : Number(point.x);
@@ -208,8 +212,8 @@ export function initForecastDayChart(day, unit = "celsius", showFeelsLike = fals
         {
           label: "Temperatura",
           data: tempData,
-          borderColor: "rgba(246, 246, 242, 0.96)",
-          backgroundColor: "rgba(255, 213, 138, 0.24)",
+          borderColor: lineColor,
+          backgroundColor: fillColor,
           borderWidth: 0,
           tension: 0.4,
           pointRadius: 0,
@@ -223,7 +227,7 @@ export function initForecastDayChart(day, unit = "celsius", showFeelsLike = fals
               {
                 label: "Percepita",
                 data: feelsLikeData,
-                borderColor: "rgba(176, 188, 213, 0.96)",
+                borderColor: feelsLikeLineColor,
                 backgroundColor: "rgba(177, 188, 213, 0)",
                 borderCapStyle: "round",
                 borderJoinStyle: "round",
@@ -415,4 +419,9 @@ function getHourlyLabelHourStep() {
   }
 
   return window.innerWidth <= 640 ? 4 : 2;
+}
+
+function readThemeValue(rootStyles, propertyName, fallback) {
+  const value = (rootStyles.getPropertyValue(propertyName) || "").trim();
+  return value || fallback;
 }

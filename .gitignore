@@ -3,3 +3,5 @@
 .weather-agents
 .worktrees
 testing.py
+__pycache__/
+*.py[cod]

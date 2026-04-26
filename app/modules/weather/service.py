@@ -3,32 +3,34 @@ from datetime import datetime
 
 import httpx
 
-from core.config import MAX_FORECAST_DAYS
-from core.exceptions import (
+from app.core.config import MAX_FORECAST_DAYS
+from app.core.exceptions import (
     WeatherConfigurationError,
     WeatherInputError,
     WeatherProviderError,
 )
-from modules.weather.air_quality import build_air_quality_metrics
-from modules.weather.forecast_builders import calculate_dew_point
-from modules.weather.http_client import (
+from app.modules.weather.air_quality import build_air_quality_metrics
+from app.modules.weather.constants import (
+    DEFAULT_CITY,
+    MAX_CITY_SUGGESTION_LIMIT,
+    MAX_LOCATION_QUERY_LENGTH,
+    MIN_CITY_SUGGESTION_QUERY_LENGTH,
+)
+from app.modules.weather.forecast_builders import calculate_dew_point
+from app.modules.weather.http_client import (
     ensure_weather_api_configured,
     fetch_weatherapi_forecast,
     get_weatherapi_city_suggestions,
 )
-from modules.weather.open_meteo_forecast import build_open_meteo_forecast_days, fetch_open_meteo_forecast
-from modules.weather.open_meteo_pollen import get_pollen_metrics
-from modules.weather.parse_utils import normalize_weatherapi_icon, parse_weatherapi_datetime
-from modules.weather.schemas import CitySuggestion, WeatherResponse
-from modules.weather.weatherapi_client import (
+from app.modules.weather.open_meteo_forecast import build_open_meteo_forecast_days, fetch_open_meteo_forecast
+from app.modules.weather.open_meteo_pollen import get_pollen_metrics
+from app.modules.weather.parse_utils import normalize_weatherapi_icon, parse_weatherapi_datetime
+from app.modules.weather.schemas import CitySuggestion, WeatherResponse
+from app.modules.weather.weatherapi_client import (
     build_forecast_days,
     get_country_metadata,
     get_yesterday_forecast_day,
 )
-
-DEFAULT_CITY = "Catanzaro"
-MAX_LOCATION_QUERY_LENGTH = 80
-MAX_CITY_SUGGESTION_LIMIT = 10
 
 logger = logging.getLogger(__name__)
 
@@ -71,13 +73,20 @@ def _clamp_suggestion_limit(limit: int) -> int:
 
 def _normalize_suggestion_request(query: str | None, limit: int) -> tuple[str, int]:
     normalized_query = (query or "").strip()
-    if len(normalized_query) < 2:
+    if len(normalized_query) < MIN_CITY_SUGGESTION_QUERY_LENGTH:
         return "", _clamp_suggestion_limit(limit)
 
     if len(normalized_query) > MAX_LOCATION_QUERY_LENGTH:
         raise WeatherInputError("La ricerca città è troppo lunga.")
 
     return normalized_query, _clamp_suggestion_limit(limit)
+
+
+def _round_optional_float(value: object, digits: int = 1) -> float | None:
+    try:
+        return round(float(value), digits)
+    except (TypeError, ValueError):
+        return None
 
 
 def _extract_forecast_payload_sections(forecast_payload: dict) -> tuple[dict, dict, list[dict]]:
@@ -190,8 +199,8 @@ async def get_weather_data(city: str = DEFAULT_CITY, country: str = "") -> Weath
 
     today_uv = (forecast_day_payloads[0].get("day", {}).get("uv") if forecast_day_payloads else None)
     tomorrow_uv = (forecast_day_payloads[1].get("day", {}).get("uv") if len(forecast_day_payloads) > 1 else None)
-    uv_index = round(float(today_uv), 1) if today_uv is not None else None
-    uv_index_tomorrow = round(float(tomorrow_uv), 1) if tomorrow_uv is not None else None
+    uv_index = _round_optional_float(today_uv)
+    uv_index_tomorrow = _round_optional_float(tomorrow_uv)
 
     return WeatherResponse(
         name=location.get("name", city),

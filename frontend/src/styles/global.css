@@ -18,16 +18,12 @@ body::after {
 }
 
 body::before {
-  background:
-    radial-gradient(circle at 24% 30%, rgba(255, 255, 255, 0.16), transparent 20%),
-    radial-gradient(circle at 78% 16%, rgba(255, 210, 150, 0.14), transparent 18%);
+  background: var(--body-glow);
   z-index: -2;
 }
 
 body::after {
-  background:
-    linear-gradient(180deg, rgba(255, 255, 255, 0.08), transparent 18%),
-    linear-gradient(180deg, transparent 72%, rgba(19, 28, 58, 0.08));
+  background: var(--body-sheen);
   z-index: -1;
 }
 

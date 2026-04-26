@@ -2,9 +2,9 @@ from datetime import datetime
 
 import httpx
 
-from core.config import MAX_FORECAST_DAYS
-from modules.weather.forecast_builders import build_forecast_day, build_hourly_forecast_points
-from modules.weather.schemas import ForecastDay
+from app.core.config import MAX_FORECAST_DAYS
+from app.modules.weather.forecast_builders import build_forecast_day, build_hourly_forecast_points
+from app.modules.weather.schemas import ForecastDay
 
 OPEN_METEO_FORECAST_URL = "https://api.open-meteo.com/v1/forecast"
 

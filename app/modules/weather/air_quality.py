@@ -1,13 +1,13 @@
 from typing import Any
 
-from modules.weather.constants import (
+from app.modules.weather.constants import (
     AQI_FALLBACK_INDEX,
     AQI_LABELS,
     O3_BREAKPOINTS,
     PM10_BREAKPOINTS,
     PM25_BREAKPOINTS,
 )
-from modules.weather.schemas import AirQualityMetrics
+from app.modules.weather.schemas import AirQualityMetrics
 
 
 def interpolate_air_quality_index(

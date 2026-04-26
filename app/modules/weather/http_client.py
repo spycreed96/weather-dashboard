@@ -3,14 +3,14 @@ from typing import Any
 
 import httpx
 
-from core.config import (
+from app.core.config import (
     MAX_FORECAST_DAYS,
     WEATHER_API_BASE_URL,
     WEATHER_API_KEY,
     WEATHER_API_LANGUAGE,
 )
-from modules.weather.constants import DEFAULT_LOCATION_COUNTRY
-from modules.weather.schemas import CitySuggestionPayload, WeatherApiSearchResult
+from app.modules.weather.constants import DEFAULT_LOCATION_COUNTRY
+from app.modules.weather.schemas import CitySuggestionPayload, WeatherApiSearchResult
 
 logger = logging.getLogger(__name__)
 

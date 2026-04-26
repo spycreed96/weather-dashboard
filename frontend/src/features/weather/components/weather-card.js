@@ -26,10 +26,10 @@ export function renderWeatherCard() {
 
       <aside class="map-card">
         <div class="map-card-header">
-          <h2>Mappa Citta</h2>
+          <h2>Mappa Città</h2>
           <p id="map-copy" class="map-card-copy">Vista geografica centrata sulla citta corrente</p>
         </div>
-        <div id="city-map" class="city-map" aria-label="Mappa della citta corrente"></div>
+        <div id="city-map" class="city-map" aria-label="Mappa della città corrente"></div>
       </aside>
     </div>
   `;

@@ -1,14 +1,14 @@
 from datetime import datetime
 from typing import Any
 
-from modules.weather.parse_utils import (
+from app.modules.weather.parse_utils import (
     normalize_probability,
     normalize_weatherapi_flag,
     normalize_weatherapi_icon,
     normalize_wind_direction,
     parse_weatherapi_datetime,
 )
-from modules.weather.schemas import HourEntry
+from app.modules.weather.schemas import HourEntry
 
 
 def classify_precipitation_type(

@@ -88,6 +88,7 @@ export function renderPrecipitationForecastChart(day, options = DEFAULT_PRECIPIT
 export function initPrecipitationForecastChart(day, options = DEFAULT_PRECIPITATION_OPTIONS) {
   const canvas = document.getElementById("forecast-precipitation-chart-canvas");
   if (!canvas || typeof Chart === "undefined" || !day) return null;
+  const rootStyles = getComputedStyle(document.documentElement);
 
   const resolvedOptions = { ...DEFAULT_PRECIPITATION_OPTIONS, ...options };
   const points = getVisiblePrecipitationPoints(day, resolvedOptions.range);
@@ -106,6 +107,12 @@ export function initPrecipitationForecastChart(day, options = DEFAULT_PRECIPITAT
     ...precipitationData,
     ...accumulationData.map((item) => item.y),
   ]);
+  const rainColor = readThemeValue(rootStyles, "--forecast-legend-rain", "rgba(66, 114, 255, 0.86)");
+  const snowColor = readThemeValue(rootStyles, "--forecast-legend-snow", "rgba(132, 195, 255, 0.86)");
+  const mixedColor = readThemeValue(rootStyles, "--forecast-legend-mixed", "rgba(105, 229, 255, 0.88)");
+  const accumulationColor = readThemeValue(rootStyles, "--forecast-legend-accumulation", "rgba(126, 220, 255, 0.96)");
+  const gridColor = readThemeValue(rootStyles, "--forecast-chart-grid", "rgba(255, 255, 255, 0.08)");
+  const axisColor = readThemeValue(rootStyles, "--forecast-chart-axis", "rgba(235, 238, 255, 0.72)");
   const labelItems = points.map((item) => {
     const iconUrl = getWeatherIconUrl(item.icon || "", "2x");
     const img = iconUrl ? new Image() : null;
@@ -122,9 +129,9 @@ export function initPrecipitationForecastChart(day, options = DEFAULT_PRECIPITAT
 
   const precipitationLabelsPlugin = createPrecipitationLabelsPlugin(labelItems, resolvedOptions.range);
   const datasets = [
-    createPrecipitationBarDataset("Pioggia", rainData, "rgba(66, 114, 255, 0.86)"),
-    createPrecipitationBarDataset("Neve", snowData, "rgba(132, 195, 255, 0.86)"),
-    createPrecipitationBarDataset("Pioggia/neve", mixedData, "rgba(105, 229, 255, 0.88)"),
+    createPrecipitationBarDataset("Pioggia", rainData, rainColor),
+    createPrecipitationBarDataset("Neve", snowData, snowColor),
+    createPrecipitationBarDataset("Pioggia/neve", mixedData, mixedColor),
   ];
 
   if (resolvedOptions.showAccumulation) {
@@ -132,7 +139,7 @@ export function initPrecipitationForecastChart(day, options = DEFAULT_PRECIPITAT
       type: "line",
       label: "Accumulo",
       data: accumulationData,
-      borderColor: "rgba(126, 220, 255, 0.96)",
+      borderColor: accumulationColor,
       borderWidth: 2,
       borderCapStyle: "round",
       borderJoinStyle: "round",
@@ -182,7 +189,7 @@ export function initPrecipitationForecastChart(day, options = DEFAULT_PRECIPITAT
           max: xDomain.max,
           time: { unit: "hour", displayFormats: { hour: "HH:mm" } },
           grid: {
-            color: "rgba(255, 255, 255, 0.07)",
+            color: gridColor,
             drawBorder: false,
           },
           ticks: { display: false },
@@ -193,7 +200,7 @@ export function initPrecipitationForecastChart(day, options = DEFAULT_PRECIPITAT
           max: precipitationMaximum,
           position: "left",
           grid: {
-            color: "rgba(255, 255, 255, 0.08)",
+            color: gridColor,
             drawBorder: false,
           },
           ticks: {
@@ -203,7 +210,7 @@ export function initPrecipitationForecastChart(day, options = DEFAULT_PRECIPITAT
           title: {
             display: true,
             text: "mm",
-            color: "rgba(235, 238, 255, 0.72)",
+            color: axisColor,
             font: { size: 12, weight: "700" },
           },
           stacked: true,
@@ -221,7 +228,7 @@ export function initPrecipitationForecastChart(day, options = DEFAULT_PRECIPITAT
           title: {
             display: true,
             text: "mm",
-            color: "rgba(235, 238, 255, 0.72)",
+            color: axisColor,
             font: { size: 12, weight: "700" },
           },
         },
@@ -397,7 +404,7 @@ function createPrecipitationLabelsPlugin(labelItems, range) {
       ctx.textAlign = "center";
       ctx.textBaseline = "middle";
       ctx.font = "12px system-ui, Arial";
-      ctx.fillStyle = "rgba(235, 238, 255, 0.78)";
+      ctx.fillStyle = readThemeValue(getComputedStyle(document.documentElement), "--forecast-chart-axis", "rgba(235, 238, 255, 0.78)");
 
       labelItems.forEach((item, index) => {
         const x = xScale.getPixelForValue(item.ms);
@@ -530,4 +537,9 @@ function formatMillimeters(value) {
 
 function roundMillimeters(value) {
   return Math.round(Number(value) * 100) / 100;
+}
+
+function readThemeValue(rootStyles, propertyName, fallback) {
+  const value = (rootStyles.getPropertyValue(propertyName) || "").trim();
+  return value || fallback;
 }

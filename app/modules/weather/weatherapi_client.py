@@ -4,18 +4,18 @@ from urllib.parse import quote
 
 import httpx
 
-from core.config import (
+from app.core.config import (
     MAX_FORECAST_DAYS,
     WEATHER_API_BASE_URL,
     WEATHER_API_KEY,
     WEATHER_API_LANGUAGE,
 )
-from modules.weather.air_quality import (
+from app.modules.weather.air_quality import (
     build_air_quality_metrics,
     interpolate_air_quality_index,
     micrograms_per_cubic_meter_to_ppb,
 )
-from modules.weather.astronomy import (
+from app.modules.weather.astronomy import (
     build_astronomy_context,
     calculate_cycle_progress,
     calculate_next_full_moon_date,
@@ -23,7 +23,7 @@ from modules.weather.astronomy import (
     get_moon_cycle_position,
     get_moon_phase_label,
 )
-from modules.weather.constants import (
+from app.modules.weather.constants import (
     AQI_FALLBACK_INDEX,
     AQI_LABELS,
     DEFAULT_LOCATION_COUNTRY,
@@ -33,8 +33,8 @@ from modules.weather.constants import (
     PM25_BREAKPOINTS,
     SYNODIC_MONTH_DAYS,
 )
-from modules.weather.forecast_builders import build_forecast_day, build_hourly_forecast_points
-from modules.weather.forecast_utils import (
+from app.modules.weather.forecast_builders import build_forecast_day, build_hourly_forecast_points
+from app.modules.weather.forecast_utils import (
     build_current_hour_entry,
     build_display_hour_entries,
     build_hour_entry_from_weatherapi,
@@ -43,7 +43,7 @@ from modules.weather.forecast_utils import (
     get_closest_hour_entry,
     get_reference_pressure,
 )
-from modules.weather.http_client import (
+from app.modules.weather.http_client import (
     build_country_biased_query,
     ensure_weather_api_configured,
     fetch_weatherapi_forecast,
@@ -53,7 +53,7 @@ from modules.weather.http_client import (
     has_explicit_location_context,
     should_retry_without_optional_features,
 )
-from modules.weather.parse_utils import (
+from app.modules.weather.parse_utils import (
     format_time_24h,
     get_max_hourly_value,
     normalize_probability,
@@ -64,7 +64,7 @@ from modules.weather.parse_utils import (
     parse_weatherapi_date,
     parse_weatherapi_datetime,
 )
-from modules.weather.schemas import AstronomyContext, ForecastDay, WeatherApiPayload
+from app.modules.weather.schemas import AstronomyContext, ForecastDay, WeatherApiPayload
 
 logger = logging.getLogger(__name__)
 

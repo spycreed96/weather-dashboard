@@ -29,7 +29,7 @@
 
 .app-header {
   background: var(--surface-strong);
-  box-shadow: 0 18px 40px rgba(15, 21, 49, 0.24);
+  box-shadow: var(--header-shell-shadow);
   grid-column: 2;
   grid-row: 1;
   margin-bottom: 0;
@@ -41,7 +41,7 @@
 
 .app-header-content {
   align-items: stretch;
-  background-color: rgb(17, 17, 18);
+  background: var(--header-inner-bg);
   display: flex;
   gap: 24px;
   justify-content: space-between;
@@ -58,11 +58,11 @@
 
 .app-menu-toggle {
   align-items: center;
-  background: #151719;
+  background: var(--app-menu-bg);
   border: none;
   border-radius: 0;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
-  color: #ffffff;
+  border-bottom: 1px solid var(--app-menu-border);
+  color: var(--app-header-title);
   cursor: pointer;
   display: flex;
   flex-direction: column;
@@ -72,17 +72,17 @@
   justify-self: start;
   min-width: var(--app-sidebar-rail-width);
   padding: 0;
-  transition: background 0.2s ease;
+  transition: var(--transition);
   width: var(--app-sidebar-rail-width);
 }
 
 .app-menu-toggle:hover {
-  background: #1d2023;
+  background: var(--app-menu-hover-bg);
 }
 
 .app-menu-toggle:focus-visible,
 .app-sidebar-link:focus-visible {
-  outline: 3px solid rgba(45, 144, 255, 0.42);
+  outline: 3px solid var(--focus-ring);
   outline-offset: -3px;
 }
 
@@ -95,7 +95,7 @@
 
 .app-header-title {
   align-self: center;
-  color: #ffffff;
+  color: var(--app-header-title);
   font-size: 1.05rem;
   font-weight: 700;
   line-height: 1;
@@ -106,9 +106,9 @@
 .app-sidebar {
   align-content: start;
   align-self: stretch;
-  background: #1b1d1f;
-  box-shadow: 18px 0 38px rgba(0, 0, 0, 0.26);
-  color: #ffffff;
+  background: var(--sidebar-bg);
+  box-shadow: var(--sidebar-shadow);
+  color: var(--sidebar-text-strong);
   display: grid;
   grid-auto-rows: max-content;
   grid-column: 1;
@@ -137,7 +137,7 @@
   background: transparent;
   border: none;
   border-radius: 0;
-  color: rgba(255, 255, 255, 0.88);
+  color: var(--sidebar-text);
   cursor: pointer;
   display: grid;
   font-size: 0.96rem;
@@ -152,16 +152,16 @@
 }
 
 .app-sidebar-link:hover {
-  background: rgba(255, 255, 255, 0.06);
-  color: #ffffff;
+  background: var(--sidebar-hover-bg);
+  color: var(--sidebar-text-strong);
 }
 
 .app-sidebar-link.is-active {
-  color: #ffffff;
+  color: var(--sidebar-text-strong);
 }
 
 .app-sidebar-link.is-active::before {
-  background: #1499ff;
+  background: var(--sidebar-active-rail);
   content: "";
   inset: 8px auto 8px 0;
   position: absolute;

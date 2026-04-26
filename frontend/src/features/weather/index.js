@@ -186,8 +186,6 @@ export function unmountWeather() {
   weatherRuntime = null;
 }
 
-export const mountWeatherFeature = mountWeather;
-
 function getElements(root) {
   return {
     airQuality: qs("#air-quality", root),
@@ -279,7 +277,17 @@ function bindThemeToggle(themeToggle) {
     document.body.classList.toggle("dark", isDark);
     localStorage.setItem("theme", isDark ? "dark" : "light");
     updateThemeToggle(themeToggle, isDark);
+    refreshThemeDrivenForecastVisuals();
   }, getWeatherListenerOptions());
+}
+
+function refreshThemeDrivenForecastVisuals() {
+  if (!weatherRuntime?.elements?.forecastChart || !Array.isArray(weatherState.forecastData) || !weatherState.forecastData.length) {
+    return;
+  }
+
+  destroyWeatherCharts(weatherRuntime.elements.forecastChart);
+  renderSelectedForecastChart(weatherRuntime.elements, weatherState);
 }
 
 function bindRefreshButton(elements, state) {
@@ -1419,6 +1427,14 @@ function renderForecastPanels(elements, state) {
   renderWeatherInsights(elements, state);
 }
 
+function initializeForecastChart(initializeChart, chartType) {
+  try {
+    initializeChart();
+  } catch (error) {
+    console.error(`Impossibile inizializzare il grafico forecast "${chartType}".`, error);
+  }
+}
+
 function renderSelectedForecastChart(elements, state) {
   if (!elements.forecastChart) {
     return;
@@ -1430,12 +1446,12 @@ function renderSelectedForecastChart(elements, state) {
       range: state.precipitationRange,
       showAccumulation: state.showPrecipitationAccumulation,
     });
-    try {
+    initializeForecastChart(() => {
       initPrecipitationForecastChart(selectedDay, {
         range: state.precipitationRange,
         showAccumulation: state.showPrecipitationAccumulation,
       });
-    } catch (e) { /* ignore */ }
+    }, "precipitation");
     bindPrecipitationChartControls(elements, state);
     return;
   }
@@ -1444,11 +1460,11 @@ function renderSelectedForecastChart(elements, state) {
     elements.forecastChart.innerHTML = renderWindForecastChart(selectedDay, {
       showGusts: state.showWindGusts,
     });
-    try {
+    initializeForecastChart(() => {
       initWindForecastChart(selectedDay, {
         showGusts: state.showWindGusts,
       });
-    } catch (e) { /* ignore */ }
+    }, "wind");
     bindWindChartControls(elements, state);
     return;
   }
@@ -1459,7 +1475,10 @@ function renderSelectedForecastChart(elements, state) {
     state.currentWeather,
     state.showFeelsLikeForecast,
   );
-  try { initForecastDayChart(selectedDay, state.temperatureUnit, state.showFeelsLikeForecast); } catch (e) { /* ignore */ }
+  initializeForecastChart(
+    () => initForecastDayChart(selectedDay, state.temperatureUnit, state.showFeelsLikeForecast),
+    "overview",
+  );
   bindForecastChartInteractions(elements, state);
 }
 

@@ -1,9 +1,10 @@
 import math
 from datetime import timedelta
 
-from modules.weather.schemas import ForecastDay, HourlyForecastPoint
-from modules.weather.constants import WEEKDAY_LABELS
-from modules.weather.parse_utils import normalize_probability, normalize_direction
+from app.modules.weather.constants import WEEKDAY_LABELS
+from app.modules.weather.parse_utils import normalize_direction, normalize_probability
+from app.modules.weather.schemas import ForecastDay, HourlyForecastPoint
+
 
 def get_day_label(target_date, current_date) -> str:
     if target_date == current_date - timedelta(days=1):
@@ -20,10 +21,6 @@ def calculate_dew_point(temperature_celsius: float, humidity: int | float) -> fl
     alpha = ((17.27 * float(temperature_celsius)) / (237.7 + float(temperature_celsius))) + math.log(humidity_ratio)
     dew_point = (237.7 * alpha) / (17.27 - alpha)
     return round(dew_point)
-
-
- 
-
 
 def build_hourly_forecast_points(entries: list[dict]) -> list[HourlyForecastPoint]:
     ordered_entries = sorted(entries, key=lambda item: item.get("sort_key", item.get("hour", 0)))

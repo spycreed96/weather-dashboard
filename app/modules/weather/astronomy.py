@@ -2,9 +2,9 @@ from datetime import date, datetime, timedelta
 from math import acos, pi
 from typing import Any
 
-from modules.weather.constants import MOON_PHASE_LABELS, SYNODIC_MONTH_DAYS
-from modules.weather.parse_utils import format_time_24h, parse_weatherapi_clock_time
-from modules.weather.schemas import AstronomyContext
+from app.modules.weather.constants import MOON_PHASE_LABELS, SYNODIC_MONTH_DAYS
+from app.modules.weather.parse_utils import format_time_24h, parse_weatherapi_clock_time
+from app.modules.weather.schemas import AstronomyContext
 
 
 def calculate_span_minutes(start_time: datetime | None, end_time: datetime | None) -> int | None:

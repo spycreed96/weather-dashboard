@@ -1,17 +1,15 @@
 .favorites-view {
-  background:
-    radial-gradient(circle at top right, rgba(0, 103, 177, 0.22), transparent 28%),
-    linear-gradient(180deg, #1f1f1f 0%, #16181d 100%);
-  color: #ffffff;
+  background: var(--favorites-view-bg);
+  color: var(--text);
   min-height: calc(100vh - 60px);
   padding: 24px 24px 72px;
   position: relative;
 }
 
 .favorites-view code {
-  background: rgba(255, 255, 255, 0.08);
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  color: #ebf6ff;
+  background: var(--favorites-code-bg);
+  border: 1px solid var(--favorites-code-border);
+  color: var(--favorites-code-text);
   padding: 2px 6px;
 }
 
@@ -21,7 +19,7 @@
 }
 
 .favorites-view .favorites-section-title {
-  color: #f4f4f4;
+  color: var(--favorites-title);
   font-size: 1.72rem;
   font-weight: 400;
   line-height: 1.15;
@@ -34,7 +32,7 @@
 }
 
 .favorites-route-eyebrow {
-  color: rgba(255, 255, 255, 0.68);
+  color: var(--favorites-eyebrow);
   font-size: 0.78rem;
   letter-spacing: 0.12em;
   margin: 0 0 10px;
@@ -45,7 +43,7 @@
 .favorites-section-subtitle,
 .favorites-add-hint,
 .favorites-add-preview-copy {
-  color: rgba(255, 255, 255, 0.78);
+  color: var(--favorites-copy);
   line-height: 1.6;
 }
 
@@ -68,9 +66,9 @@
 }
 
 .favorites-overview-badge {
-  background: rgba(172, 221, 255, 0.12);
-  border: 1px solid rgba(172, 221, 255, 0.22);
-  color: #acdfff;
+  background: var(--favorites-badge-bg);
+  border: 1px solid var(--favorites-badge-border);
+  color: var(--favorites-badge-text);
   display: inline-flex;
   font-size: 0.92rem;
   font-weight: 700;
@@ -80,7 +78,7 @@
 }
 
 .favorites-sync-status {
-  color: rgba(172, 221, 255, 0.88);
+  color: var(--favorites-badge-text);
   font-size: 0.92rem;
   margin: 0 0 18px;
   min-height: 22px;
@@ -114,8 +112,8 @@
 }
 
 .favorites-section-action {
-  background: #0067b1;
-  color: #ffffff;
+  background: var(--primary-action-bg);
+  color: var(--primary-action-text);
   font-size: 0.95rem;
   min-height: 44px;
   padding: 0 18px;
@@ -132,7 +130,7 @@
 .favorites-section-action:hover,
 .favorites-route-back:hover,
 .favorites-add-confirm:hover {
-  background: #0875c9;
+  background: var(--primary-action-hover-bg);
 }
 
 .favorites-grid {
@@ -143,9 +141,10 @@
 }
 
 .favorite-card {
-  background: linear-gradient(180deg, #0067b1 0%, #04558f 100%);
-  border: 1px solid rgba(172, 221, 255, 0.1);
-  color: #ffffff;
+  background: var(--favorite-card-bg);
+  border: 1px solid var(--favorite-card-border);
+  box-shadow: var(--favorite-card-shadow);
+  color: var(--favorite-card-text);
   display: flex;
   flex-direction: column;
   justify-content: space-between;
@@ -160,12 +159,13 @@
 }
 
 .favorite-card--contextual:hover {
-  box-shadow: 0 12px 24px rgba(0, 0, 0, 0.22);
+  box-shadow: var(--favorite-card-hover-shadow);
 }
 
 .favorite-card--primary {
-  background: linear-gradient(145deg, #0d8ad4 0%, #04558f 100%);
-  box-shadow: 0 22px 44px rgba(0, 0, 0, 0.24);
+  background: var(--favorite-card-primary-bg);
+  box-shadow: var(--favorite-card-primary-shadow);
+  color: var(--favorite-card-primary-text);
 }
 
 .favorite-card__title {
@@ -235,7 +235,7 @@
 
 .favorite-card__icon--wind::before {
   border-bottom: 4px solid transparent;
-  border-left: 9px solid rgba(172, 221, 255, 0.95);
+  border-left: 9px solid var(--favorite-card-icon);
   border-top: 4px solid transparent;
   content: "";
   left: 1px;
@@ -245,7 +245,7 @@
 }
 
 .favorite-card__icon--drop::before {
-  background: rgba(172, 221, 255, 0.95);
+  background: var(--favorite-card-icon);
   border-radius: 8px 8px 8px 2px;
   content: "";
   height: 9px;
@@ -257,20 +257,33 @@
 }
 
 .favorite-card__description {
+  color: var(--favorite-card-muted);
   font-size: 0.84rem;
   line-height: 1.3;
   margin: 10px 0 0;
 }
 
+.favorite-card--primary .favorite-card__description {
+  color: var(--favorite-card-primary-muted);
+}
+
+.favorite-card--primary .favorite-card__icon--wind::before {
+  border-left-color: var(--favorite-card-primary-icon);
+}
+
+.favorite-card--primary .favorite-card__icon--drop::before {
+  background: var(--favorite-card-primary-icon);
+}
+
 .favorites-empty-state {
-  background: rgba(255, 255, 255, 0.04);
-  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: var(--favorites-empty-bg);
+  border: 1px solid var(--favorites-empty-border);
   min-height: 220px;
   padding: 24px;
 }
 
 .favorites-empty-state__eyebrow {
-  color: #acdfff;
+  color: var(--favorites-badge-text);
   font-size: 0.8rem;
   font-weight: 700;
   letter-spacing: 0.08em;
@@ -285,24 +298,24 @@
 }
 
 .favorites-empty-state__copy {
-  color: rgba(255, 255, 255, 0.76);
+  color: var(--favorites-copy);
   line-height: 1.6;
   margin: 0;
   max-width: 420px;
 }
 
 .favorites-feedback {
-  color: rgba(255, 255, 255, 0.78);
+  color: var(--favorites-copy);
   font-size: 0.95rem;
   margin: 14px 0 0;
   min-height: 22px;
 }
 
 .favorites-context-menu {
-  background: linear-gradient(180deg, #0f4f86 0%, #0a3d67 100%);
-  border: 1px solid rgba(172, 221, 255, 0.18);
+  background: var(--favorites-menu-bg);
+  border: 1px solid var(--favorites-menu-border);
   border-radius: 10px;
-  box-shadow: 0 18px 32px rgba(0, 0, 0, 0.34);
+  box-shadow: var(--favorites-menu-shadow);
   display: none;
   min-width: 156px;
   position: fixed;
@@ -317,7 +330,7 @@
   background: transparent;
   border: none;
   border-radius: 10px;
-  color: #ffffff;
+  color: var(--favorites-menu-text);
   cursor: pointer;
   display: block;
   font-size: 0.95rem;
@@ -329,7 +342,7 @@
 }
 
 .favorites-context-menu__action:hover {
-  background: rgba(172, 221, 255, 0.1);
+  background: var(--overlay-hover-bg);
 }
 
 .favorites-feedback--add {
@@ -345,8 +358,8 @@
 
 .favorites-route-back {
   align-items: center;
-  background: #0067b1;
-  color: #ffffff;
+  background: var(--primary-action-bg);
+  color: var(--primary-action-text);
   display: inline-flex;
   font-size: 1.3rem;
   height: 46px;
@@ -365,8 +378,8 @@
 }
 
 .favorites-add-stage {
-  background: rgba(255, 255, 255, 0.03);
-  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: var(--favorites-stage-bg);
+  border: 1px solid var(--favorites-stage-border);
   min-height: 100%;
   padding: 22px;
 }
@@ -382,11 +395,11 @@
 }
 
 #favorites-city-input {
-  background: rgba(255, 255, 255, 0.08);
+  background: var(--input-bg);
   backdrop-filter: blur(8px);
-  border: 1px solid rgba(255, 255, 255, 0.08);
+  border: 1px solid var(--input-border);
   border-radius: 0;
-  color: #ffffff;
+  color: var(--input-text);
   flex: 1;
   font-size: 1rem;
   min-height: var(--header-action-size);
@@ -395,12 +408,12 @@
 }
 
 #favorites-city-input::placeholder {
-  color: rgba(255, 255, 255, 0.64);
+  color: var(--input-placeholder);
 }
 
 #favorites-city-input:focus {
-  background: rgba(255, 255, 255, 0.11);
-  border-color: rgba(255, 255, 255, 0.18);
+  background: var(--input-focus-bg);
+  border-color: var(--input-focus-border);
   outline: none;
 }
 
@@ -414,8 +427,8 @@
 }
 
 .favorites-add-preview-panel {
-  background: linear-gradient(180deg, rgba(0, 103, 177, 0.14), rgba(0, 103, 177, 0.04));
-  border: 1px solid rgba(172, 221, 255, 0.14);
+  background: var(--favorites-preview-bg);
+  border: 1px solid var(--favorites-preview-border);
   min-height: 100%;
   padding: 22px;
 }
@@ -425,7 +438,7 @@
 }
 
 .favorites-add-preview-label {
-  color: #acdfff;
+  color: var(--favorites-badge-text);
   font-size: 0.8rem;
   font-weight: 700;
   letter-spacing: 0.08em;
@@ -465,20 +478,20 @@
 }
 
 .favorites-add-confirm {
-  background: #0067b1;
-  color: #ffffff;
+  background: var(--primary-action-bg);
+  color: var(--primary-action-text);
   font-weight: 700;
 }
 
 .favorites-add-reset {
   background: transparent;
-  border: 1px solid rgba(255, 255, 255, 0.18);
-  color: #ffffff;
+  border: 1px solid var(--secondary-action-border);
+  color: var(--secondary-action-text);
 }
 
 .favorites-add-reset:hover {
-  border-color: rgba(172, 221, 255, 0.58);
-  color: #acdfff;
+  border-color: var(--secondary-action-hover-border);
+  color: var(--secondary-action-hover-text);
 }
 
 .favorites-add-confirm:disabled,
@@ -490,11 +503,11 @@
 
 @keyframes favorites-preview-pulse {
   from {
-    border-color: rgba(172, 221, 255, 0.08);
+    border-color: var(--favorites-stage-border);
   }
 
   to {
-    border-color: rgba(172, 221, 255, 0.24);
+    border-color: var(--favorites-preview-border);
   }
 }
 

@@ -1291,9 +1291,9 @@ function renderSunGraphic(progress) {
     <svg class="weather-insight-sun-svg" viewBox="0 0 184 122" role="img" aria-label="Percorso del sole nel cielo">
       <defs>
         <linearGradient id="weather-insight-sun-arc-gradient" x1="56" y1="68" x2="134" y2="68" gradientUnits="userSpaceOnUse">
-          <stop offset="0%" stop-color="#e35f5d" />
-          <stop offset="52%" stop-color="#db4a52" />
-          <stop offset="100%" stop-color="#8537bd" />
+          <stop offset="0%" style="stop-color: var(--insight-sun-arc-start);" />
+          <stop offset="52%" style="stop-color: var(--insight-sun-arc-mid);" />
+          <stop offset="100%" style="stop-color: var(--insight-sun-arc-end);" />
         </linearGradient>
       </defs>
 
@@ -1639,8 +1639,8 @@ function renderInsightSparkline(
     <svg class="weather-insight-svg" viewBox="0 0 ${INSIGHT_CHART_WIDTH} ${INSIGHT_CHART_HEIGHT}" role="img" aria-label="${ariaLabel}">
       <defs>
         <linearGradient id="${gradientId}" x1="0" x2="0" y1="0" y2="1">
-          <stop offset="0%" stop-color="rgba(72, 194, 255, 0.34)" />
-          <stop offset="100%" stop-color="rgba(72, 194, 255, 0.06)" />
+          <stop offset="0%" style="stop-color: var(--insight-area-start);" />
+          <stop offset="100%" style="stop-color: var(--insight-area-end);" />
         </linearGradient>
       </defs>
 
