@@ -39,6 +39,14 @@ python -m uvicorn main:app --app-dir app --host 127.0.0.1 --port 8000
 
 Il comando sopra è quello raccomandato anche in deploy. Non usare `uvicorn app.main:app` dalla root del repository: con la struttura attuale degli import puo fallire in fase di bootstrap.
 
+## Smoke test
+
+Per un controllo rapido del backend e del mount del frontend puoi eseguire:
+
+```powershell
+python -m unittest discover -s tests -v
+```
+
 ## Endpoint utili
 
 - `GET /api/weather?city=Rome`
