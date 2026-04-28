@@ -10,6 +10,7 @@ L'architettura attuale è pensata per un deploy single-origin: il backend espone
 
 ## Live demo
 
+IMPORTANTE: Se delle scritte "CLOUD" compaiono a schermo, caricare la view delle località preferite attraverso la sidebar sulla sinistra, e ritornare successivamente sulla view principale.
 Puoi provare l'app qui: [weather-dashboard-sgjm.onrender.com](https://weather-dashboard-sgjm.onrender.com)
 
 ## Struttura del repository
