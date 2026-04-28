@@ -2,6 +2,7 @@ const FAVORITES_STORAGE_KEY = "weather-dashboard-favorite-locations";
 
 const PRIMARY_FALLBACK = {
   description: "In prevalenza nuvoloso",
+  icon: "04d",
   maxTemperature: 19,
   minTemperature: 11,
   name: "Catanzaro, Cal.",
@@ -14,6 +15,7 @@ const PRIMARY_FALLBACK = {
 const DEFAULT_FAVORITES = [
   {
     description: "In prevalenza nuvoloso",
+    icon: "04d",
     maxTemperature: 16,
     minTemperature: 3,
     name: "Aomori, Giappone",
@@ -24,6 +26,7 @@ const DEFAULT_FAVORITES = [
   },
   {
     description: "In prevalenza nuvoloso",
+    icon: "04d",
     maxTemperature: 29,
     minTemperature: 19,
     name: "Australia, Cuba",
@@ -34,6 +37,7 @@ const DEFAULT_FAVORITES = [
   },
   {
     description: "Soleggiato",
+    icon: "01d",
     maxTemperature: 26,
     minTemperature: 13,
     name: "Sidney, Stati Uniti d'America",
@@ -44,6 +48,7 @@ const DEFAULT_FAVORITES = [
   },
   {
     description: "Soleggiato",
+    icon: "01d",
     maxTemperature: 17,
     minTemperature: 7,
     name: "Toronto, Canada",
@@ -54,6 +59,7 @@ const DEFAULT_FAVORITES = [
   },
   {
     description: "Nuvoloso",
+    icon: "04d",
     maxTemperature: 17,
     minTemperature: 8,
     name: "Canepina, Lazio",
@@ -64,6 +70,7 @@ const DEFAULT_FAVORITES = [
   },
   {
     description: "Parzialmente sereno",
+    icon: "02d",
     maxTemperature: 19,
     minTemperature: 9,
     name: "Sicili, Campania",
@@ -74,6 +81,7 @@ const DEFAULT_FAVORITES = [
   },
   {
     description: "Nuvoloso",
+    icon: "04d",
     maxTemperature: 19,
     minTemperature: 9,
     name: "Roma, Laz.",
@@ -116,14 +124,15 @@ export function normalizeFavorite(favorite) {
 
   const normalizedQuery = normalizeText(favorite?.query);
   const normalizedName = normalizeText(favorite?.name);
+  const normalizedDescription = normalizeText(favorite?.description) || "Meteo disponibile";
 
   if (!normalizedQuery || !normalizedName) {
     return null;
   }
 
   return {
-    description: normalizeText(favorite.description) || "Meteo disponibile",
-    icon: favorite.icon ?? null,
+    description: normalizedDescription,
+    icon: favorite.icon ?? getFallbackWeatherIcon(normalizedDescription),
     maxTemperature: favorite.maxTemperature ?? null,
     minTemperature: favorite.minTemperature ?? null,
     name: normalizedName,
@@ -140,10 +149,13 @@ export function normalizePrimaryLocation(primaryLocation) {
     return { ...PRIMARY_FALLBACK };
   }
 
+  const normalizedDescription = normalizeText(primaryLocation?.description) || PRIMARY_FALLBACK.description;
+
   return {
     ...PRIMARY_FALLBACK,
     ...primaryLocation,
-    description: normalizeText(primaryLocation?.description) || PRIMARY_FALLBACK.description,
+    description: normalizedDescription,
+    icon: primaryLocation?.icon ?? getFallbackWeatherIcon(normalizedDescription) ?? PRIMARY_FALLBACK.icon,
     name: normalizeText(primaryLocation?.name) || normalizedQuery || PRIMARY_FALLBACK.name,
     query: normalizedQuery,
   };
@@ -406,4 +418,50 @@ function normalizeQuery(value) {
 
 function normalizeText(value) {
   return String(value || "").trim();
+}
+
+function getFallbackWeatherIcon(description) {
+  const normalizedDescription = normalizeText(description).toLowerCase();
+
+  if (!normalizedDescription || normalizedDescription === "meteo non disponibile") {
+    return null;
+  }
+
+  if (normalizedDescription.includes("temporale")) {
+    return "11d";
+  }
+
+  if (normalizedDescription.includes("neve")) {
+    return "13d";
+  }
+
+  if (
+    normalizedDescription.includes("pioggia")
+    || normalizedDescription.includes("rovesci")
+    || normalizedDescription.includes("precipit")
+  ) {
+    return "10d";
+  }
+
+  if (normalizedDescription.includes("nebbia") || normalizedDescription.includes("foschia")) {
+    return "50d";
+  }
+
+  if (normalizedDescription.includes("parzial")) {
+    return "02d";
+  }
+
+  if (normalizedDescription.includes("sereno") || normalizedDescription.includes("soleggiato")) {
+    return "01d";
+  }
+
+  if (normalizedDescription.includes("nuvol") || normalizedDescription.includes("coperto")) {
+    return "04d";
+  }
+
+  if (normalizedDescription.includes("variabil")) {
+    return "03d";
+  }
+
+  return null;
 }
