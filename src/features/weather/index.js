@@ -52,6 +52,8 @@ function createInitialWeatherState() {
     showPrecipitationAccumulation: true,
     showWindGusts: true,
     isRefreshPending: false,
+    isHydratingHistoryIcons: false,
+    historyIconHydrationRequestId: 0,
     pendingHistoryLabel: null,
     refreshToastTimer: null,
     selectedForecastDate: null,
@@ -154,6 +156,7 @@ export function mountWeather(root) {
   bindSearchInteractions(elements, state);
   bindGlobalInteractions(elements);
   renderSavedHistoryLocations(elements, state);
+  void hydrateMissingHistoryLocationIcons(elements, state);
   updateCurrentLocationPrimaryControl(elements, state);
 
   if (state.currentWeather) {
@@ -170,6 +173,8 @@ export function unmountWeather() {
   }
 
   weatherState.weatherRequestId += 1;
+  weatherState.historyIconHydrationRequestId += 1;
+  weatherState.isHydratingHistoryIcons = false;
   weatherRuntime.searchController?.destroy?.();
   weatherRuntime.controller.abort();
   weatherRuntime.shellBinding?.destroy?.();
@@ -1241,7 +1246,7 @@ function renderSavedHistoryLocations(elements, state) {
     const compactIconUrl = getWeatherIconUrl(location.icon, "");
     const iconMarkup = compactIconUrl
       ? `<img class="responsive-history-img" src="${compactIconUrl}" alt="Weather" />`
-      : "<span>Cloud</span>";
+      : "";
     const historyEntry = createHistoryItem({
       cityKey: normalizeWeatherQuery(historyQuery),
       cityName: historyDisplayLabel,
@@ -1274,6 +1279,52 @@ function renderSavedHistoryLocations(elements, state) {
 
   elements.historyContainer.scrollLeft = 0;
   updateHistoryNavVisibility(elements);
+}
+
+async function hydrateMissingHistoryLocationIcons(elements, state) {
+  if (state.isHydratingHistoryIcons) {
+    return;
+  }
+
+  const activeQuery = normalizeWeatherQuery(getActiveWeatherQuery(state));
+  const locationsMissingIcons = getHistoryLocationsSnapshot().filter((location) => {
+    const historyQuery = String(location?.query || "").trim();
+    return historyQuery && !location.icon && normalizeWeatherQuery(historyQuery) !== activeQuery;
+  });
+
+  if (!locationsMissingIcons.length) {
+    return;
+  }
+
+  const requestId = ++state.historyIconHydrationRequestId;
+  state.isHydratingHistoryIcons = true;
+
+  try {
+    const results = await Promise.all(locationsMissingIcons.map(async (location) => {
+      const historyQuery = String(location.query || "").trim();
+
+      try {
+        const data = await fetchWeather(historyQuery);
+        updateSavedLocationSnapshot(createFavoriteSnapshotFromWeather(data, historyQuery));
+        return true;
+      } catch (error) {
+        console.warn("History: icona meteo non disponibile", error);
+        return false;
+      }
+    }));
+
+    if (!weatherRuntime || weatherRuntime.elements !== elements || requestId !== state.historyIconHydrationRequestId) {
+      return;
+    }
+
+    if (results.some(Boolean)) {
+      renderSavedHistoryLocations(elements, state);
+    }
+  } finally {
+    if (requestId === state.historyIconHydrationRequestId) {
+      state.isHydratingHistoryIcons = false;
+    }
+  }
 }
 
 function closeAllHistoryDropdowns() {
